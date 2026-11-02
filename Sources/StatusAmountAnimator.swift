@@ -6,7 +6,7 @@ enum StatusAmountRenderer {
     static func width(for text: String) -> CGFloat {
         max(62, ceil((text as NSString).size(withAttributes: [.font: font]).width) + 22)
     }
-    static func image(from old: String, to new: String, progress: Double, width: CGFloat) -> NSImage {
+    static func image(from old: String, to new: String, progress: Double, width: CGFloat, fastDigit: Int? = nil) -> NSImage {
         let t = min(1, max(0, progress))
         let eased = t * t * (3 - 2 * t)
         let count = max(old.count, new.count)
@@ -35,7 +35,9 @@ enum StatusAmountRenderer {
                     let glyphWidth = glyph.size(withAttributes: style).width
                     glyph.draw(at: NSPoint(x: x + (widths[index] - glyphWidth) / 2, y: baseline), withAttributes: style)
                 }
-                if a == b {
+                if index == count - 1, let digit = fastDigit {
+                    draw(String(digit), at: y, opacity: 1)
+                } else if a == b {
                     draw(b, at: y, opacity: 1)
                 } else {
                     // Each changed digit slides up inside the ring; unchanged digits stay still.
@@ -52,54 +54,60 @@ enum StatusAmountRenderer {
     }
 }
 
-/// Render only during a transition. The latest queued amount wins if updates arrive mid-roll.
+/// Upper digits roll at the real earning cadence; the thousandths digit is a visual ticker.
 final class StatusAmountAnimator {
     private weak var button: NSStatusBarButton?
     private var timer: Timer?
     private var current = ""
-    private var pending: (text: String, width: CGFloat)?
-    private var startTime: TimeInterval = 0
     private var transitionFrom = ""
     private var transitionTo = ""
     private var transitionWidth: CGFloat = 62
-    private let duration: TimeInterval = 0.82
+    private var startTime: TimeInterval = 0
+    private var fast = false
+    private let duration: TimeInterval = 0.8
     init(button: NSStatusBarButton) { self.button = button }
     deinit { timer?.invalidate() }
 
-    func show(_ text: String, width: CGFloat, animated: Bool) {
-        if !animated || current.isEmpty {
+    func show(_ text: String, width: CGFloat, animated: Bool, earning: Bool = false) {
+        let motion = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        fast = earning && motion
+        transitionWidth = width
+        if current.isEmpty || !motion || !earning {
+            current = text
+            transitionFrom = text
+            transitionTo = text
+            startTime = ProcessInfo.processInfo.systemUptime - duration
+        } else if text != transitionTo {
+            // Once-per-second targets finish before the next target arrives.
+            transitionFrom = current
+            transitionTo = text
+            startTime = ProcessInfo.processInfo.systemUptime
+        }
+        if fast || transitionFrom != transitionTo {
+            if timer == nil {
+                let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.tick() }
+                self.timer = timer
+                RunLoop.main.add(timer, forMode: .common)
+            }
+        } else {
             timer?.invalidate()
             timer = nil
-            pending = nil
-            current = text
-            button?.image = StatusAmountRenderer.image(from: text, to: text, progress: 1, width: width)
-            return
         }
-        if timer != nil {
-            pending = (text, width)
-            return
-        }
-        guard text != current else { return }
-        transitionFrom = current
-        transitionTo = text
-        transitionWidth = width
-        startTime = ProcessInfo.processInfo.systemUptime
-        let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.tick() }
-        self.timer = timer
-        RunLoop.main.add(timer, forMode: .common)
         tick()
     }
     private func tick() {
-        let elapsed = ProcessInfo.processInfo.systemUptime - startTime
-        let progress = min(1, elapsed / duration)
-        button?.image = StatusAmountRenderer.image(from: transitionFrom, to: transitionTo, progress: progress, width: transitionWidth)
-        if progress >= 1 {
-            timer?.invalidate()
-            timer = nil
+        let now = ProcessInfo.processInfo.systemUptime
+        let progress = min(1, max(0, (now - startTime) / duration))
+        let motion = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        // About 12 distinct jumps per second. This digit never carries into the true cents.
+        let digit = fast && motion ? Int(now * 12) % 10 : nil
+        button?.image = StatusAmountRenderer.image(from: transitionFrom, to: transitionTo, progress: motion ? progress : 1, width: transitionWidth, fastDigit: digit)
+        if progress >= 1 || !motion {
             current = transitionTo
-            if let next = pending {
-                pending = nil
-                show(next.text, width: next.width, animated: !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+            transitionFrom = transitionTo
+            if !fast || !motion {
+                timer?.invalidate()
+                timer = nil
             }
         }
     }

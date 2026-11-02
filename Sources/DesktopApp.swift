@@ -148,13 +148,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func updateStatusAmount() {
         let amount = store.settings.money(store.snapshot.earned, digits: 3)
-        guard amount != lastAmount else { return }
         lastAmount = amount
         let width = max(StatusAmountRenderer.width(for: amount), StatusAmountRenderer.width(for: store.settings.money(store.settings.dailySalary, digits: 3)))
         statusItem.length = width + 4
         let animate = lastCurrency == store.settings.currency && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         lastCurrency = store.settings.currency
-        amountAnimator?.show(amount, width: width, animated: animate)
+        let snapshot = store.snapshot
+        let earning = store.settings.monthlySalary > 0 && (snapshot.status == .working || (snapshot.status == .lunch && store.settings.lunchPaid))
+        amountAnimator?.show(amount, width: width, animated: animate, earning: earning)
         statusItem.button?.setAccessibilityLabel("今日收入 \(amount)，点击查看详情")
         statusItem.button?.toolTip = "今日收入 \(amount) · \(store.snapshot.statusLabel)"
     }
