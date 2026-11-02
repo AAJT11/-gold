@@ -178,6 +178,17 @@ class FloatingCapsulePillView(context: Context) : View(context) {
     var amountText: String = "¥0.00"
         set(value) {
             if (field != value) {
+                val now = System.currentTimeMillis()
+                val isWorking = (status == Status.WORKING)
+                if (transitionTo.isEmpty() || !isWorking) {
+                    transitionFrom = value
+                    transitionTo = value
+                    transitionStartTime = now - durationMs
+                } else {
+                    transitionFrom = transitionTo
+                    transitionTo = value
+                    transitionStartTime = now
+                }
                 field = value
                 requestLayout()
                 invalidate()
@@ -199,6 +210,11 @@ class FloatingCapsulePillView(context: Context) : View(context) {
             }
         }
 
+    private var transitionFrom: String = ""
+    private var transitionTo: String = ""
+    private var transitionStartTime: Long = 0L
+    private val durationMs: Long = 800L
+
     private val rect = RectF()
     private val progRect = RectF()
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -215,8 +231,9 @@ class FloatingCapsulePillView(context: Context) : View(context) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         textPaint.textSize = LuxuryTheme.dp(context, 14f)
-        val textW = textPaint.measureText(amountText)
-        val desiredW = (textW + LuxuryTheme.dp(context, 48f)).toInt()
+        val ref = if (amountText.length >= 8) amountText else (amountText + "0")
+        val textW = textPaint.measureText(ref)
+        val desiredW = (textW + LuxuryTheme.dp(context, 52f)).toInt()
         val desiredH = LuxuryTheme.dp(context, 40f).toInt()
         setMeasuredDimension(
             resolveSize(desiredW, widthMeasureSpec),
@@ -293,17 +310,245 @@ class FloatingCapsulePillView(context: Context) : View(context) {
             Status.REST -> Color.rgb(168, 162, 158) to Color.argb(60, 168, 162, 158)
         }
         val cy = height / 2f
-        val dotX = LuxuryTheme.dp(context, 17f)
+        val dotX = LuxuryTheme.dp(context, 16f)
         dotPaint.color = glowColor
         canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 6.2f), dotPaint)
         dotPaint.color = dotColor
         canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.5f), dotPaint)
 
-        // Crisp Alabaster/Gold Money Text
-        textPaint.textSize = LuxuryTheme.dp(context, 14f)
-        textPaint.color = Color.rgb(250, 249, 246)
+        // Per-digit vertical rolling & thousandths continuous ticker (macOS parity)
+        textPaint.textSize = LuxuryTheme.dp(context, 13.5f)
+        val now = System.currentTimeMillis()
+        val isWorking = (status == Status.WORKING)
+        val progressVal = ((now - transitionStartTime).toFloat() / durationMs).coerceIn(0f, 1f)
+        val eased = progressVal * progressVal * (3f - 2f * progressVal)
+        val fastPhase = if (isWorking) (now % 1000000L) * 0.012 else null
+
+        val oldStr = if (transitionFrom.isNotEmpty()) transitionFrom else amountText
+        val newStr = if (transitionTo.isNotEmpty()) transitionTo else amountText
+        val count = maxOf(oldStr.length, newStr.length)
+        val prevChars = oldStr.padStart(count, ' ')
+        val nextChars = newStr.padStart(count, ' ')
+
+        val digitW = textPaint.measureText("0")
+        val widths = FloatArray(count) { i ->
+            val c1 = prevChars[i]
+            val c2 = nextChars[i]
+            if (c1.isDigit() || c2.isDigit()) digitW else maxOf(textPaint.measureText(c1.toString()), textPaint.measureText(c2.toString()))
+        }
+        val totalW = widths.sum()
+
+        val clipLeft = LuxuryTheme.dp(context, 26f)
+        val clipRight = width - LuxuryTheme.dp(context, 8f)
+        val clipRect = RectF(clipLeft, LuxuryTheme.dp(context, 2f), clipRight, height - LuxuryTheme.dp(context, 2f))
+
+        canvas.save()
+        canvas.clipRect(clipRect)
+
         val fm = textPaint.fontMetrics
-        val baseline = cy - (fm.ascent + fm.descent) / 2f
-        canvas.drawText(amountText, LuxuryTheme.dp(context, 28f), baseline, textPaint)
+        val baseLineY = cy - (fm.ascent + fm.descent) / 2f
+        val slideDist = LuxuryTheme.dp(context, 15f)
+
+        val availW = clipRect.width()
+        val startX = clipLeft + maxOf(0f, (availW - totalW) / 2f)
+        var curX = startX
+
+        for (i in 0 until count) {
+            val a = prevChars[i]
+            val b = nextChars[i]
+            val colW = widths[i]
+
+            if (i == count - 1 && fastPhase != null) {
+                val baseDigit = kotlin.math.floor(fastPhase).toInt()
+                val fraction = (fastPhase - kotlin.math.floor(fastPhase)).toFloat()
+                val d1 = (baseDigit % 10).toString()
+                val d2 = ((baseDigit + 1) % 10).toString()
+                val w1 = textPaint.measureText(d1)
+                val w2 = textPaint.measureText(d2)
+
+                textPaint.color = Color.rgb(250, 249, 246)
+                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, textPaint)
+                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), textPaint)
+            } else if (a == b) {
+                if (b != ' ') {
+                    textPaint.color = Color.rgb(250, 249, 246)
+                    val wb = textPaint.measureText(b.toString())
+                    canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY, textPaint)
+                }
+            } else {
+                if (progressVal < 1f && a != ' ') {
+                    val alphaOld = (255 * (1f - eased)).toInt().coerceIn(0, 255)
+                    textPaint.color = Color.argb(alphaOld, 250, 249, 246)
+                    val wa = textPaint.measureText(a.toString())
+                    canvas.drawText(a.toString(), curX + (colW - wa) / 2f, baseLineY - slideDist * eased, textPaint)
+                }
+                if (progressVal > 0f && b != ' ') {
+                    val alphaNew = (255 * eased).toInt().coerceIn(0, 255)
+                    textPaint.color = Color.argb(alphaNew, 250, 249, 246)
+                    val wb = textPaint.measureText(b.toString())
+                    canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY + slideDist * (1f - eased), textPaint)
+                }
+            }
+            curX += colW
+        }
+        canvas.restore()
+
+        if (progressVal >= 1f) {
+            transitionFrom = transitionTo
+        }
+
+        if (isWorking && isAttachedToWindow) {
+            postInvalidateOnAnimation()
+        }
+    }
+}
+
+/**
+ * Editorial Luxury Serif amount roller for MainActivity dashboard.
+ */
+class LuxuryRollerAmountView(context: Context) : View(context) {
+    var amountText: String = "¥0.00"
+        set(value) {
+            if (field != value) {
+                val now = System.currentTimeMillis()
+                if (transitionTo.isEmpty() || !isWorking) {
+                    transitionFrom = value
+                    transitionTo = value
+                    transitionStartTime = now - durationMs
+                } else {
+                    transitionFrom = transitionTo
+                    transitionTo = value
+                    transitionStartTime = now
+                }
+                field = value
+                requestLayout()
+                invalidate()
+            }
+        }
+
+    var isWorking: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
+    private var transitionFrom: String = ""
+    private var transitionTo: String = ""
+    private var transitionStartTime: Long = 0L
+    private val durationMs: Long = 800L
+
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.create("serif", Typeface.BOLD)
+        letterSpacing = 0.01f
+    }
+    private val milliPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.create("serif", Typeface.BOLD)
+        letterSpacing = 0.01f
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        textPaint.textSize = LuxuryTheme.dp(context, 38f)
+        val textW = textPaint.measureText(if (amountText.length >= 8) amountText else (amountText + "0"))
+        val desiredH = LuxuryTheme.dp(context, 48f).toInt()
+        val desiredW = textW.toInt() + LuxuryTheme.dp(context, 16f).toInt()
+        setMeasuredDimension(
+            resolveSize(desiredW, widthMeasureSpec),
+            resolveSize(desiredH, heightMeasureSpec)
+        )
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val isDark = LuxuryTheme.isDark(context)
+        val fgPri = if (isDark) Color.parseColor("#FAF9F6") else Color.parseColor("#1A1A1A")
+        val goldAccent = if (isDark) Color.parseColor("#D4AF37") else Color.parseColor("#A16207")
+
+        textPaint.textSize = LuxuryTheme.dp(context, 38f)
+        textPaint.color = fgPri
+        milliPaint.textSize = LuxuryTheme.dp(context, 38f)
+        milliPaint.color = goldAccent
+
+        val now = System.currentTimeMillis()
+        val progress = ((now - transitionStartTime).toFloat() / durationMs).coerceIn(0f, 1f)
+        val eased = progress * progress * (3f - 2f * progress)
+        val fastPhase = if (isWorking) (now % 1000000L) * 0.012 else null
+
+        val oldStr = if (transitionFrom.isNotEmpty()) transitionFrom else amountText
+        val newStr = if (transitionTo.isNotEmpty()) transitionTo else amountText
+        val count = maxOf(oldStr.length, newStr.length)
+        val prevChars = oldStr.padStart(count, ' ')
+        val nextChars = newStr.padStart(count, ' ')
+
+        val digitW = textPaint.measureText("0")
+        val widths = FloatArray(count) { i ->
+            val c1 = prevChars[i]
+            val c2 = nextChars[i]
+            if (c1.isDigit() || c2.isDigit()) digitW else maxOf(textPaint.measureText(c1.toString()), textPaint.measureText(c2.toString()))
+        }
+
+        val clipRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        canvas.save()
+        canvas.clipRect(clipRect)
+
+        val fm = textPaint.fontMetrics
+        val baseLineY = height / 2f - (fm.ascent + fm.descent) / 2f
+        val slideDist = LuxuryTheme.dp(context, 32f)
+
+        var curX = 0f
+        for (i in 0 until count) {
+            val a = prevChars[i]
+            val b = nextChars[i]
+            val colW = widths[i]
+            val isMilli = (i == count - 1 && isWorking)
+            val p = if (isMilli) milliPaint else textPaint
+
+            if (i == count - 1 && fastPhase != null) {
+                val baseDigit = kotlin.math.floor(fastPhase).toInt()
+                val fraction = (fastPhase - kotlin.math.floor(fastPhase)).toFloat()
+                val d1 = (baseDigit % 10).toString()
+                val d2 = ((baseDigit + 1) % 10).toString()
+                val w1 = p.measureText(d1)
+                val w2 = p.measureText(d2)
+
+                p.color = goldAccent
+                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, p)
+                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), p)
+            } else if (a == b) {
+                if (b != ' ') {
+                    p.color = if (isMilli) goldAccent else fgPri
+                    val wb = p.measureText(b.toString())
+                    canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY, p)
+                }
+            } else {
+                val baseCol = if (isMilli) goldAccent else fgPri
+                val r = Color.red(baseCol)
+                val g = Color.green(baseCol)
+                val bl = Color.blue(baseCol)
+                if (progress < 1f && a != ' ') {
+                    val alphaOld = (255 * (1f - eased)).toInt().coerceIn(0, 255)
+                    p.color = Color.argb(alphaOld, r, g, bl)
+                    val wa = p.measureText(a.toString())
+                    canvas.drawText(a.toString(), curX + (colW - wa) / 2f, baseLineY - slideDist * eased, p)
+                }
+                if (progress > 0f && b != ' ') {
+                    val alphaNew = (255 * eased).toInt().coerceIn(0, 255)
+                    p.color = Color.argb(alphaNew, r, g, bl)
+                    val wb = p.measureText(b.toString())
+                    canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY + slideDist * (1f - eased), p)
+                }
+            }
+            curX += colW
+        }
+        canvas.restore()
+
+        if (progress >= 1f) {
+            transitionFrom = transitionTo
+        }
+
+        if (isWorking && isAttachedToWindow) {
+            postInvalidateOnAnimation()
+        }
     }
 }

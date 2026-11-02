@@ -44,8 +44,7 @@ class MainActivity : Activity() {
     private lateinit var tvKicker: TextView
     private lateinit var tvTitle: TextView
     private lateinit var tvStatusBadge: TextView
-    private lateinit var tvAmountMain: TextView
-    private lateinit var tvAmountMilli: TextView
+    private lateinit var heroAmountRoller: LuxuryRollerAmountView
     private lateinit var progressBar: ChampagneProgressBarView
     private lateinit var tvTiming: TextView
     private lateinit var tvPercent: TextView
@@ -196,27 +195,16 @@ class MainActivity : Activity() {
         headerRow.addView(tvStatusBadge)
         cardContent.addView(headerRow)
 
-        // Hero Serif Money Row (¥108.74 + .5 live thousandths ticker)
-        val amountRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM
-            setPadding(0, dp(14f), 0, dp(12f))
+        // Hero Serif Money Roller (macOS main-branch per-digit rolling & thousandths ticker)
+        heroAmountRoller = LuxuryRollerAmountView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(52f)
+            ).apply {
+                setMargins(0, dp(10f), 0, dp(10f))
+            }
         }
-        tvAmountMain = TextView(this).apply {
-            text = "¥0.00"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 42f)
-            typeface = Typeface.create("serif", Typeface.BOLD)
-            letterSpacing = 0.01f
-        }
-        tvAmountMilli = TextView(this).apply {
-            text = ".0"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            typeface = Typeface.create("serif", Typeface.BOLD)
-            setPadding(dp(3f), 0, 0, dp(6f))
-        }
-        amountRow.addView(tvAmountMain)
-        amountRow.addView(tvAmountMilli)
-        cardContent.addView(amountRow)
+        cardContent.addView(heroAmountRoller)
 
         // Champagne Gold Progress Bar
         progressBar = ChampagneProgressBarView(this).apply {
@@ -350,23 +338,13 @@ class MainActivity : Activity() {
 
         tvKicker.setTextColor(goldAccent)
         tvTitle.setTextColor(fgPri)
-        tvAmountMain.setTextColor(fgPri)
-        tvAmountMilli.setTextColor(goldAccent)
         tvTiming.setTextColor(fgSec)
         tvPercent.setTextColor(goldAccent)
         tvCapsuleHint.setTextColor(fgSec)
 
-        // Format 2-decimal main + 3rd decimal live ticker
-        tvAmountMain.text = settings.money(snap.earned, digits = 2)
-        val thirdDigit = if (snap.status == Status.WORKING) {
-            val frac = (snap.earned * 1000.0).toLong() % 10L
-            val animTick = ((System.currentTimeMillis() / 90L) % 10L)
-            ".${(frac + animTick) % 10L}"
-        } else {
-            val third = (floor(snap.earned * 1000.0 + 1e-6).toLong()) % 10L
-            ".$third"
-        }
-        tvAmountMilli.text = thirdDigit
+        val isWorking = (snap.status == Status.WORKING)
+        heroAmountRoller.isWorking = isWorking
+        heroAmountRoller.amountText = settings.money(snap.earned, digits = if (isWorking) 3 else 2)
 
         tvStatusBadge.text = snap.statusLabel
         styleStatusBadge(snap.status, isDark)

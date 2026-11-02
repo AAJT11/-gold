@@ -1,7 +1,8 @@
 from __future__ import annotations
 import time
+import math
 from typing import Optional
-from PyQt6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, pyqtSignal, QEvent
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, pyqtSignal, QEvent, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMenu,
     QGraphicsDropShadowEffect, QFrame, QApplication
@@ -111,6 +112,140 @@ class LiquidSubPanel(QFrame):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(gold_accent))
         painter.drawRoundedRect(QRectF(rect.left(), rect.top() + 12, 2.2, rect.height() - 24), 1.0, 1.0)
+
+
+class LuxuryRollingAmountLabel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(46)
+        self.amount_text = "¥0.00"
+        self.transition_from = ""
+        self.transition_to = ""
+        self.transition_start_time = 0.0
+        self.duration = 0.8
+        self.is_working = False
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update)
+
+    def set_amount(self, text: str, is_working: bool):
+        now = time.monotonic()
+        if not self.transition_to or not is_working:
+            self.transition_from = text
+            self.transition_to = text
+            self.transition_start_time = now - self.duration
+        elif text != self.transition_to:
+            self.transition_from = self.transition_to
+            self.transition_to = text
+            self.transition_start_time = now
+
+        self.amount_text = text
+        self.is_working = is_working
+
+        if is_working and self.isVisible():
+            if not self.timer.isActive():
+                self.timer.start(20)
+        else:
+            if self.timer.isActive():
+                self.timer.stop()
+            self.update()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self.is_working and not self.timer.isActive():
+            self.timer.start(20)
+
+    def hideEvent(self, event):
+        if self.timer.isActive():
+            self.timer.stop()
+        super().hideEvent(event)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        is_dark = is_apps_dark_mode()
+        font = QFont("Times New Roman", 30, QFont.Weight.Bold)
+        font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 0.5)
+        painter.setFont(font)
+        metrics = QFontMetrics(font)
+
+        now = time.monotonic()
+        progress = min(1.0, max(0.0, (now - self.transition_start_time) / self.duration))
+        eased = progress * progress * (3.0 - 2.0 * progress)
+        fast_phase = (now * 12.0) if self.is_working else None
+
+        old_str = self.transition_from or self.amount_text
+        new_str = self.transition_to or self.amount_text
+        count = max(len(old_str), len(new_str))
+        prev_chars = list(" " * (count - len(old_str)) + old_str)
+        next_chars = list(" " * (count - len(new_str)) + new_str)
+
+        digit_w = metrics.horizontalAdvance("0")
+        widths = []
+        for i in range(count):
+            c1, c2 = prev_chars[i], next_chars[i]
+            if c1.isdigit() or c2.isdigit():
+                widths.append(digit_w)
+            else:
+                widths.append(max(metrics.horizontalAdvance(c1), metrics.horizontalAdvance(c2)))
+
+        clip_rect = QRectF(0.0, 0.0, self.width(), self.height())
+        painter.save()
+        painter.setClipRect(clip_rect)
+
+        ascent = metrics.ascent()
+        descent = metrics.descent()
+        base_y = self.height() / 2.0 + (ascent - descent) / 2.0
+        slide_h = 32.0
+
+        cur_x = 0.0
+        base_color = QColor(250, 249, 246) if is_dark else QColor(26, 26, 26)
+
+        for i in range(count):
+            a = prev_chars[i]
+            b = next_chars[i]
+            col_w = widths[i]
+
+            if i == count - 1 and fast_phase is not None:
+                base_val = int(math.floor(fast_phase))
+                fraction = fast_phase - base_val
+                g1 = str(base_val % 10)
+                g2 = str((base_val + 1) % 10)
+                w1 = metrics.horizontalAdvance(g1)
+                w2 = metrics.horizontalAdvance(g2)
+
+                gold_c = QColor("#D4AF37") if is_dark else QColor("#A16207")
+                painter.setPen(gold_c)
+                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
+                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)
+
+            elif a == b:
+                if b != " ":
+                    painter.setPen(base_color)
+                    wb = metrics.horizontalAdvance(b)
+                    painter.drawText(QPointF(cur_x + (col_w - wb) / 2.0, base_y), b)
+            else:
+                if progress < 1.0 and a != " ":
+                    c_old = QColor(base_color)
+                    c_old.setAlphaF(max(0.0, 1.0 - eased))
+                    painter.setPen(c_old)
+                    wa = metrics.horizontalAdvance(a)
+                    painter.drawText(QPointF(cur_x + (col_w - wa) / 2.0, base_y - slide_h * eased), a)
+                if progress > 0.0 and b != " ":
+                    c_new = QColor(base_color)
+                    c_new.setAlphaF(min(1.0, eased))
+                    painter.setPen(c_new)
+                    wb = metrics.horizontalAdvance(b)
+                    painter.drawText(QPointF(cur_x + (col_w - wb) / 2.0, base_y + slide_h * (1.0 - eased)), b)
+
+            cur_x += col_w
+
+        painter.restore()
+
+        if progress >= 1.0:
+            self.transition_from = self.transition_to
 
 
 class IncomeDetailsPopover(QWidget):
@@ -224,11 +359,8 @@ class IncomeDetailsPopover(QWidget):
         header_layout.addWidget(self.status_label, alignment=Qt.AlignmentFlag.AlignVCenter)
         card_layout.addLayout(header_layout)
 
-        # Big Money Amount (Editorial High-Contrast Serif with Lining Figures)
-        self.amount_label = QLabel("¥0.00", self.card)
-        amt_font = QFont("Times New Roman", 30, QFont.Weight.Bold)
-        amt_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 0.5)
-        self.amount_label.setFont(amt_font)
+        # Big Money Amount with per-digit rolling & thousandths ticker (macOS parity)
+        self.amount_label = LuxuryRollingAmountLabel(self.card)
         card_layout.addWidget(self.amount_label)
 
         # Progress bar & info
@@ -391,7 +523,9 @@ class IncomeDetailsPopover(QWidget):
         self.snapshot = snapshot
         self.settings = settings
 
-        self.amount_label.setText(settings.money(snapshot.earned))
+        is_working = (snapshot.status == Status.WORKING)
+        formatted_money = settings.money(snapshot.earned, digits=3 if is_working else 2)
+        self.amount_label.set_amount(formatted_money, is_working)
         self.status_label.setText(snapshot.status_label)
         self.progress_bar.set_progress(snapshot.progress, snapshot.status)
         self.timing_label.setText(snapshot.timing_label(now))

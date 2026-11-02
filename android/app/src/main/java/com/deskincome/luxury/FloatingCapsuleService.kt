@@ -426,7 +426,8 @@ class FloatingCapsuleService : Service() {
         val settings = repo.loadSettings()
         val now = ZonedDateTime.now()
         val snap = IncomeMath.snapshot(settings, now)
-        val formattedMoney = settings.money(snap.earned, digits = 2)
+        val isWorking = (snap.status == Status.WORKING)
+        val formattedMoney = settings.money(snap.earned, digits = if (isWorking) 3 else 2)
 
         pillView?.let { view ->
             view.status = snap.status

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import math
 import ctypes
 from typing import Optional
 from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, pyqtSignal, QTimer
@@ -52,9 +53,17 @@ class TaskbarCapsule(QWidget):
         self.setMouseTracking(True)
 
         self.capsule_height = 25
-        self.capsule_width = 86
+        self.capsule_width = 96
         self.resize(self.capsule_width, self.capsule_height)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+        # Digit rolling & fast thousandths ticker (macOS parity)
+        self.anim_timer = QTimer(self)
+        self.anim_timer.timeout.connect(self.update)
+        self.transition_from: str = ""
+        self.transition_to: str = ""
+        self.transition_start_time: float = 0.0
+        self.duration: float = 0.8
 
         # Adaptive timer checks taskbar/tray geometry changes without spamming SetWindowPos
         self.adaptive_timer = QTimer(self)
@@ -117,6 +126,14 @@ class TaskbarCapsule(QWidget):
         self._bind_taskbar_owner(shell)
         self.refresh_backdrop()
         QTimer.singleShot(50, lambda: self._bind_taskbar_owner(win32gui.FindWindow("Shell_TrayWnd", None)))
+        if self.snapshot and self.snapshot.status == Status.WORKING:
+            if not self.anim_timer.isActive():
+                self.anim_timer.start(20)
+
+    def hideEvent(self, event):
+        if self.anim_timer.isActive():
+            self.anim_timer.stop()
+        super().hideEvent(event)
 
     def refresh_backdrop(self):
         self.backdrop = None
@@ -134,23 +151,44 @@ class TaskbarCapsule(QWidget):
     def update_snapshot(self, snapshot: IncomeSnapshot, settings: IncomeSettings):
         self.snapshot = snapshot
         self.settings = settings
-        new_text = settings.money(snapshot.earned)
+        is_working = (snapshot.status == Status.WORKING)
+        # 3 decimal places when working (e.g. ¥108.745), 2 decimal places otherwise
+        new_text = settings.money(snapshot.earned, digits=3 if is_working else 2)
+
+        now = time.monotonic()
+        if not self.transition_to or not is_working:
+            self.transition_from = new_text
+            self.transition_to = new_text
+            self.transition_start_time = now - self.duration
+        elif new_text != self.transition_to:
+            self.transition_from = self.transition_to
+            self.transition_to = new_text
+            self.transition_start_time = now
+
         if new_text != self.amount_text:
             self.amount_text = new_text
             self.recalc_size()
-            self.update()
+
+        if is_working and self.isVisible():
+            if not self.anim_timer.isActive():
+                self.anim_timer.start(20)  # 50 fps smooth ticker
         else:
+            if self.anim_timer.isActive():
+                self.anim_timer.stop()
             self.update()
+
         self.setToolTip(
             f"今日收入: {self.amount_text} · {snapshot.status_label}\n"
-            f"左键展开详情 · 右键菜单 · 可自由拖动体验液态玻璃折射"
+            f"左键展开详情 · 右键菜单 · 可自由拖动"
         )
 
     def recalc_size(self):
         font = self._get_font()
         metrics = QFontMetrics(font)
-        text_width = metrics.horizontalAdvance(self.amount_text)
-        new_width = max(78, text_width + 32)
+        # Ensure sufficient width for 3 decimals
+        ref_text = self.amount_text if len(self.amount_text) >= 8 else (self.amount_text + "0")
+        text_width = metrics.horizontalAdvance(ref_text)
+        new_width = max(90, text_width + 36)
         if new_width != self.capsule_width:
             self.capsule_width = new_width
             self.resize(self.capsule_width, self.capsule_height)
@@ -312,13 +350,98 @@ class TaskbarCapsule(QWidget):
         painter.setBrush(QBrush(QColor(255, 250, 230, 220)))
         painter.drawEllipse(QPointF(dot_x - 0.8, center_y - 0.8), 0.9, 0.9)
 
-        # Money Text
+        # Money Text with macOS main-branch per-digit rolling & thousandths ticker
         font = self._get_font()
         painter.setFont(font)
-        text_rect = QRectF(20.0, 0.0, self.width() - 28.0, self.height() - 0.5)
-        text_color = QColor(250, 249, 246, 255) if is_dark else QColor(26, 26, 26, 255)
-        painter.setPen(text_color)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self.amount_text)
+        metrics = QFontMetrics(font)
+
+        now = time.monotonic()
+        progress = min(1.0, max(0.0, (now - self.transition_start_time) / self.duration))
+        eased = progress * progress * (3.0 - 2.0 * progress)  # Smooth cubic Hermite ease
+        fast_phase = (now * 12.0) if (status == Status.WORKING) else None
+
+        old_str = self.transition_from or self.amount_text
+        new_str = self.transition_to or self.amount_text
+        count = max(len(old_str), len(new_str))
+        prev_chars = list(" " * (count - len(old_str)) + old_str)
+        next_chars = list(" " * (count - len(new_str)) + new_str)
+
+        digit_w = metrics.horizontalAdvance("0")
+        widths = []
+        for i in range(count):
+            c1, c2 = prev_chars[i], next_chars[i]
+            if c1.isdigit() or c2.isdigit():
+                widths.append(digit_w)
+            else:
+                widths.append(max(metrics.horizontalAdvance(c1), metrics.horizontalAdvance(c2)))
+
+        total_text_w = sum(widths)
+
+        # Text clipping rectangle (leaves space on left for jewel dot, prevents vertical overflow)
+        clip_left = 22.0
+        clip_right = self.width() - 8.0
+        clip_rect = QRectF(clip_left, 1.0, max(1.0, clip_right - clip_left), self.height() - 2.0)
+
+        painter.save()
+        painter.setClipRect(clip_rect)
+
+        avail_w = clip_rect.width()
+        start_x = clip_rect.left() + max(0.0, (avail_w - total_text_w) / 2.0)
+
+        ascent = metrics.ascent()
+        descent = metrics.descent()
+        base_y = center_y + (ascent - descent) / 2.0
+        slide_h = 15.0  # Vertical slide travel distance
+
+        cur_x = start_x
+        base_color = QColor(250, 249, 246) if is_dark else QColor(26, 26, 26)
+
+        for i in range(count):
+            a = prev_chars[i]
+            b = next_chars[i]
+            col_w = widths[i]
+
+            # Fast rolling thousandths ticker on the last digit
+            if i == count - 1 and fast_phase is not None:
+                base_val = int(math.floor(fast_phase))
+                fraction = fast_phase - base_val
+                g1 = str(base_val % 10)
+                g2 = str((base_val + 1) % 10)
+                w1 = metrics.horizontalAdvance(g1)
+                w2 = metrics.horizontalAdvance(g2)
+
+                # Glyph rolling up smoothly
+                painter.setPen(base_color)
+                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
+                # Next glyph rolling up from below
+                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)
+
+            elif a == b:
+                if b != " ":
+                    painter.setPen(base_color)
+                    w_b = metrics.horizontalAdvance(b)
+                    painter.drawText(QPointF(cur_x + (col_w - w_b) / 2.0, base_y), b)
+            else:
+                # Eased per-digit vertical scroll
+                if progress < 1.0 and a != " ":
+                    c_old = QColor(base_color)
+                    c_old.setAlphaF(max(0.0, 1.0 - eased))
+                    painter.setPen(c_old)
+                    w_a = metrics.horizontalAdvance(a)
+                    painter.drawText(QPointF(cur_x + (col_w - w_a) / 2.0, base_y - slide_h * eased), a)
+                if progress > 0.0 and b != " ":
+                    c_new = QColor(base_color)
+                    c_new.setAlphaF(min(1.0, eased))
+                    painter.setPen(c_new)
+                    w_b = metrics.horizontalAdvance(b)
+                    painter.drawText(QPointF(cur_x + (col_w - w_b) / 2.0, base_y + slide_h * (1.0 - eased)), b)
+
+            cur_x += col_w
+
+        painter.restore()
+
+        if progress >= 1.0:
+            self.transition_from = self.transition_to
 
     def enterEvent(self, event):
         self.is_hovered = True
