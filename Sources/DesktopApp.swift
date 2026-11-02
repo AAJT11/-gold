@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func updateStatusAmount() {
-        let amount = store.settings.money(store.snapshot.earned)
+        let amount = store.settings.money(store.snapshot.earned, digits: 3)
         guard amount != lastAmount else { return }
         lastAmount = amount
         let attributes: [NSAttributedString.Key: Any] = [

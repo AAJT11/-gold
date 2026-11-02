@@ -16,13 +16,13 @@ struct IncomeDetails: View {
                 Spacer()
                 Text(snapshot.statusLabel).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            Text(settings.money(snapshot.earned))
+            Text(settings.money(snapshot.earned, digits: 3))
                 .font(.system(size: 40, weight: .regular)).monospacedDigit().tracking(-1.4)
                 .lineLimit(1).minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
                 .contentTransition(.numericText(value: snapshot.earned))
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: (snapshot.earned * 100).rounded())
-                .accessibilityLabel("今日已赚 \(settings.money(snapshot.earned))")
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: (snapshot.earned * 1000).rounded())
+                .accessibilityLabel("今日已赚 \(settings.money(snapshot.earned, digits: 3))")
             VStack(spacing: 9) {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
