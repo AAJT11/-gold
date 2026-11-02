@@ -6,7 +6,7 @@ enum StatusAmountRenderer {
     static func width(for text: String) -> CGFloat {
         max(62, ceil((text as NSString).size(withAttributes: [.font: font]).width) + 22)
     }
-    static func image(from old: String, to new: String, progress: Double, width: CGFloat, fastDigit: Int? = nil) -> NSImage {
+    static func image(from old: String, to new: String, progress: Double, width: CGFloat, fastPhase: Double? = nil) -> NSImage {
         let t = min(1, max(0, progress))
         let eased = t * t * (3 - 2 * t)
         let count = max(old.count, new.count)
@@ -35,8 +35,12 @@ enum StatusAmountRenderer {
                     let glyphWidth = glyph.size(withAttributes: style).width
                     glyph.draw(at: NSPoint(x: x + (widths[index] - glyphWidth) / 2, y: baseline), withAttributes: style)
                 }
-                if index == count - 1, let digit = fastDigit {
-                    draw(String(digit), at: y, opacity: 1)
+                if index == count - 1, let phase = fastPhase {
+                    let base = Int(floor(phase))
+                    let fraction = phase - floor(phase)
+                    // Continuous vertical motion; wrap from 9 to 0 without a hard glyph swap.
+                    draw(String(base % 10), at: y + 15 * fraction, opacity: 1)
+                    draw(String((base + 1) % 10), at: y - 15 * (1 - fraction), opacity: 1)
                 } else if a == b {
                     draw(b, at: y, opacity: 1)
                 } else {
@@ -85,7 +89,7 @@ final class StatusAmountAnimator {
         }
         if fast || transitionFrom != transitionTo {
             if timer == nil {
-                let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.tick() }
+                let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
                 self.timer = timer
                 RunLoop.main.add(timer, forMode: .common)
             }
@@ -99,9 +103,9 @@ final class StatusAmountAnimator {
         let now = ProcessInfo.processInfo.systemUptime
         let progress = min(1, max(0, (now - startTime) / duration))
         let motion = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        // About 12 distinct jumps per second. This digit never carries into the true cents.
-        let digit = fast && motion ? Int(now * 12) % 10 : nil
-        button?.image = StatusAmountRenderer.image(from: transitionFrom, to: transitionTo, progress: motion ? progress : 1, width: transitionWidth, fastDigit: digit)
+        // Twelve digit positions per second, rendered continuously at 60 fps.
+        let phase: Double? = fast && motion ? now * 12 : nil
+        button?.image = StatusAmountRenderer.image(from: transitionFrom, to: transitionTo, progress: motion ? progress : 1, width: transitionWidth, fastPhase: phase)
         if progress >= 1 || !motion {
             current = transitionTo
             transitionFrom = transitionTo
