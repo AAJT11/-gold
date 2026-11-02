@@ -4,7 +4,12 @@ __pycache__/
 *.py[cod]
 *.spec
 *.exe
+*.apk
 .agents/
 .DS_Store
 *.xcuserstate
 *.log
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
