@@ -7,7 +7,7 @@ app_bundle="$stage/今日收入.app"
 mkdir -p "$project_root/build"
 mkdir -p "$app_bundle/Contents/MacOS" "$app_bundle/Contents/Resources"
 swiftc -swift-version 5 -O -parse-as-library -target arm64-apple-macos14.0 \
-  "$project_root/Sources/IncomeModel.swift" "$project_root/Sources/Views.swift" "$project_root/Sources/MenuBarViews.swift" "$project_root/Sources/DesktopApp.swift" \
+  "$project_root/Sources/IncomeModel.swift" "$project_root/Sources/StatusAmountAnimator.swift" "$project_root/Sources/Views.swift" "$project_root/Sources/MenuBarViews.swift" "$project_root/Sources/DesktopApp.swift" \
   -framework AppKit -framework SwiftUI -framework ServiceManagement \
   -o "$app_bundle/Contents/MacOS/DeskIncome"
 cat > "$app_bundle/Contents/Info.plist" <<'PLIST'
@@ -19,8 +19,8 @@ cat > "$app_bundle/Contents/Info.plist" <<'PLIST'
   <key>CFBundleName</key><string>今日收入</string>
   <key>CFBundleDisplayName</key><string>今日收入</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.6.1</string>
-  <key>CFBundleVersion</key><string>8</string>
+  <key>CFBundleShortVersionString</key><string>1.7.0</string>
+  <key>CFBundleVersion</key><string>9</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

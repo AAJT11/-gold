@@ -39,10 +39,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let popover = NSPopover()
     private var subscriptions = Set<AnyCancellable>()
     private var lastAmount = ""
+    private var lastCurrency = ""
+    private var amountAnimator: StatusAmountAnimator?
     private var escapeMonitor: Any?
     private var observations: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let index = CommandLine.arguments.firstIndex(of: "--render-roll-preview"), CommandLine.arguments.count > index + 1 {
+            let folder = URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let amounts = ["¥123.456", "¥123.466", "¥123.476", "¥123.486", "¥123.496", "¥123.506"]
+            for step in 0..<(amounts.count - 1) {
+                for frame in 0..<25 {
+                    let image = StatusAmountRenderer.image(from: amounts[step], to: amounts[step + 1], progress: Double(frame) / 24, width: 90)
+                    if let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff), let data = bitmap.representation(using: .png, properties: [:]) {
+                        try? data.write(to: folder.appendingPathComponent(String(format: "%03d.png", step * 25 + frame)))
+                    }
+                }
+            }
+            NSApp.terminate(nil)
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--render-display-preview"), CommandLine.arguments.count > index + 1 {
             let view = HStack(spacing: 24) {
                 IncomeDisplay(settings: store.settings, snapshot: store.snapshot, now: store.now).environment(\.colorScheme, .light)
@@ -97,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.imagePosition = .imageOnly
+            amountAnimator = StatusAmountAnimator(button: button)
         }
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -132,24 +150,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let amount = store.settings.money(store.snapshot.earned, digits: 3)
         guard amount != lastAmount else { return }
         lastAmount = amount
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.black
-        ]
-        let text = NSAttributedString(string: amount, attributes: attributes)
-        let width = max(62, ceil(text.size().width) + 22)
-        let image = NSImage(size: NSSize(width: width, height: 22), flipped: false) { rect in
-            let border = NSBezierPath(roundedRect: NSRect(x: 1, y: 2.5, width: rect.width - 2, height: 17), xRadius: 8.5, yRadius: 8.5)
-            NSColor.black.withAlphaComponent(0.38).setStroke()
-            border.lineWidth = 0.8
-            border.stroke()
-            let size = text.size()
-            text.draw(at: NSPoint(x: (rect.width - size.width) / 2, y: (rect.height - size.height) / 2))
-            return true
-        }
-        image.isTemplate = true // macOS supplies the correct foreground for any menu-bar background.
+        let width = max(StatusAmountRenderer.width(for: amount), StatusAmountRenderer.width(for: store.settings.money(store.settings.dailySalary, digits: 3)))
         statusItem.length = width + 4
-        statusItem.button?.image = image
+        let animate = lastCurrency == store.settings.currency && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        lastCurrency = store.settings.currency
+        amountAnimator?.show(amount, width: width, animated: animate)
         statusItem.button?.setAccessibilityLabel("今日收入 \(amount)，点击查看详情")
         statusItem.button?.toolTip = "今日收入 \(amount) · \(store.snapshot.statusLabel)"
     }

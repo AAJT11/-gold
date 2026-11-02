@@ -21,7 +21,7 @@ struct IncomeDetails: View {
                 .lineLimit(1).minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
                 .contentTransition(.numericText(value: snapshot.earned))
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: (snapshot.earned * 1000).rounded())
+                .animation(reduceMotion ? nil : .smooth(duration: 0.8, extraBounce: 0), value: (snapshot.earned * 1000).rounded())
                 .accessibilityLabel("今日已赚 \(settings.money(snapshot.earned, digits: 3))")
             VStack(spacing: 9) {
                 GeometryReader { geometry in
