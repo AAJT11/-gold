@@ -1,4 +1,10 @@
 build/
+dist/
+__pycache__/
+*.py[cod]
+*.spec
+*.exe
+.agents/
 .DS_Store
 *.xcuserstate
 *.log

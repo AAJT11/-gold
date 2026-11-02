@@ -1,6 +1,53 @@
-# 今日收入 · 菜单栏工资计数器
+# 今日收入 · 菜单栏 / Windows 状态栏工资计数器
 
-由 hanmin6 设计的简约 macOS 菜单栏工资计数器：细椭圆里显示今天已经赚到的金额，点击展开详情。
+由 hanmin6 设计的简约菜单栏工资计数器：细椭圆胶囊里显示今天已经赚到的金额，点击展开详情。本分支（`windows`）新增 **Windows 10/11 原生状态栏高定香槟金液态玻璃版（MAISON Luxury E-Commerce Edition）**，完整保留原 macOS 源码与构建脚本。
+
+---
+
+## Windows 状态栏版 (`windows` 分支)
+
+### 核心特性
+
+- **原生任务栏胶囊嵌入 (`Shell_TrayWnd` Owner 绑定)**：直接嵌入 Windows 顶部或底部状态栏托盘左侧（支持跟随托盘左侧、应用图标右侧、状态栏居中或自由拖拽磁吸），点击任务栏任意位置绝不闪烁或被遮挡。
+- **高定黑金液态玻璃视效 (`MAISON · Luxury E-Commerce`)**：采用暖雪花石膏白 (`#FAF9F6`)、黑曜石深灰 (`#1C1917`) 与帝国香槟金 (`#D4AF37` / `#C5A059`) 配色体系，配合 `24px` 磨砂背景采样与金色流光进度条，自适应浅色/深色系统主题。
+- **午休暂停与次月发薪日倒计时**：
+  - 支持自定义午休时段（如 `12:30–14:00`），午休期间自动切换为「午休时间」并暂停计薪，按扣除午休后的净工作时长精算时薪。
+  - 支持自定义工作日（如周一至周六工作、周日单休）与次月发薪日（如 `次月15日`），详情面板实时显示距发薪日天数倒计时。
+- **开机自启与本机配置持久化**：所有配置保存在 `%APPDATA%\DeskIncome\config.json`，支持通过注册表 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 一键开关开机自启。
+
+### Windows 版构建与运行
+
+```bash
+pip install -r requirements.txt
+
+# 运行单元测试
+python test_income_model.py
+
+# 直接运行
+python main.py
+
+# 打包为独立无黑框单文件 EXE (输出至 dist/今日收入.exe)
+python build_exe.py
+```
+
+### Windows 版文件结构
+
+| 文件 | 用途 |
+| --- | --- |
+| `main.py` | Windows 应用入口、单实例互斥锁与 250ms 实时刷新控制器 |
+| `income_model.py` | 计薪核心引擎（含午休暂停、跨午夜班次、周日休息与次月发薪日倒计时） |
+| `ui_capsule.py` | Windows 状态栏胶囊组件（`Shell_TrayWnd` Owner 绑定、自适应定位与拖拽磁吸） |
+| `ui_popover.py` | 液态玻璃收入详情弹窗（衬线大字号金额、鎏金进度条、午休与发薪日面板） |
+| `ui_settings.py` | 工资、上下班、午休时段、次月发薪日与状态栏位置设置对话框 |
+| `theme.py` | 液态玻璃背景采样、高斯模糊与黑曜石香槟金主题绘制引擎 |
+| `config_manager.py` | `%APPDATA%\DeskIncome\config.json` 配置读写与 Windows 开机自启管理 |
+| `tray_manager.py` | 系统托盘图标与右键快捷菜单 |
+| `build_exe.py` | PyInstaller 单文件打包脚本 |
+| `test_income_model.py` | 计薪逻辑、午休冻结、夏令时与参数校验单元测试 |
+
+---
+
+## macOS 菜单栏原版 (`main` 分支)
 
 ## 功能
 
