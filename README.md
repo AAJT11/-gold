@@ -1,6 +1,6 @@
 # 今日收入 · 菜单栏工资计数器
 
-一个简约的 macOS 菜单栏小工具：细椭圆里显示今天已经赚到的金额，点击展开详情。
+由 hanmin6 设计的简约 macOS 菜单栏工资计数器：细椭圆里显示今天已经赚到的金额，点击展开详情。
 
 ## 功能
 
@@ -57,8 +57,6 @@
 | `Sources/Views.swift` | 设置界面与保留的卡片视图 |
 | `Tests/IncomeTests.swift` | 计薪边界、午休计薪/不计薪、跨午夜、DST、旧配置迁移、输入验证等检查 |
 
-## 来源与许可
+## 许可
 
-项目最初参考 [Miku Salary](https://github.com/xiiaomiku/miku-salary) 的实时薪资思路，当前菜单栏应用以 Swift、SwiftUI 和 AppKit 实现。不包含角色插画或 AI 图片素材。
-
-保留上游 MIT 许可，见 [LICENSE](LICENSE)。
+采用 MIT 许可，详见 [LICENSE](LICENSE)。
