@@ -39,9 +39,10 @@ struct IncomeDetails: View {
             Divider()
             VStack(spacing: 11) {
                 detail("工作时间", settings.hoursLabel)
+                if settings.lunchEnabled { detail("午休", settings.lunchLabel) }
                 detail("月薪", settings.money(settings.monthlySalary))
                 detail("日薪估算", settings.money(settings.dailySalary))
-                detail("每小时", settings.money(settings.dailySalary / (Double((settings.workEnd - settings.workStart + 1440) % 1440) / 60)))
+                detail("每小时", settings.money(snapshot.perHour))
             }
             Divider()
             HStack {

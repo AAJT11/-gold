@@ -89,6 +89,8 @@ struct SettingsView: View {
     @ViewState private var paidDays: String
     @ViewState private var startDate: Date
     @ViewState private var endDate: Date
+    @ViewState private var lunchStartDate: Date
+    @ViewState private var lunchEndDate: Date
     @ViewState private var error = ""
     @FocusState private var focus: EditField?
 
@@ -102,6 +104,9 @@ struct SettingsView: View {
         let shift = IncomeMath.shift(on: Date(), settings: settings)
         _startDate = ViewState(initialValue: shift.start)
         _endDate = ViewState(initialValue: shift.end)
+        let calendar = IncomeMath.calendar
+        _lunchStartDate = ViewState(initialValue: calendar.date(bySettingHour: settings.lunchStart / 60, minute: settings.lunchStart % 60, second: 0, of: Date())!)
+        _lunchEndDate = ViewState(initialValue: calendar.date(bySettingHour: settings.lunchEnd / 60, minute: settings.lunchEnd % 60, second: 0, of: Date())!)
     }
 
     var body: some View {
@@ -125,6 +130,18 @@ struct SettingsView: View {
                     Text("下班时间早于上班时间，视为次日下班。币种只改变单位，不换汇。")
                 }
                 Section {
+                    Toggle("启用午休", isOn: $draft.lunchEnabled)
+                    if draft.lunchEnabled {
+                        DatePicker("午休开始", selection: $lunchStartDate, displayedComponents: .hourAndMinute)
+                        DatePicker("午休结束", selection: $lunchEndDate, displayedComponents: .hourAndMinute)
+                        Toggle("午休计薪", isOn: $draft.lunchPaid)
+                    }
+                } header: {
+                    Text("午休")
+                } footer: {
+                    Text(draft.lunchEnabled ? (draft.lunchPaid ? "午休期间收入继续增长。" : "午休期间暂停增长，日薪按扣除午休后的工作时长分摊。") : "关闭时，整个上班时段连续计薪。")
+                }
+                Section {
                     TextField("每月计薪天数", text: $paidDays)
                     HStack(spacing: 0) {
                         Text("工作日").frame(width: 58, alignment: .leading)
@@ -143,7 +160,7 @@ struct SettingsView: View {
                 } header: {
                     Text("计薪规则")
                 } footer: {
-                    Text("日薪 = 月薪 ÷ 计薪天数，只在工作日的上班时段累计。\n不自动扣午休；修改设置会重新估算今日收入。")
+                    Text("日薪 = 月薪 ÷ 计薪天数，只在工作日的上班时段累计。\n保存修改会按新作息重新估算今日收入，金额可能调整。")
                 }
             }
             .formStyle(.grouped)
@@ -161,7 +178,7 @@ struct SettingsView: View {
                 Button("保存修改", action: submit).keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }.padding(18)
         }
-        .frame(width: 500, height: 570)
+        .frame(width: 500, height: 690)
         .onAppear { focus = initialField }
         .onReceive(NotificationCenter.default.publisher(for: .incomeEditField)) { notification in
             if let field = notification.object as? EditField { focus = field }
@@ -176,6 +193,8 @@ struct SettingsView: View {
             let calendar = IncomeMath.calendar
             result.workStart = calendar.component(.hour, from: startDate) * 60 + calendar.component(.minute, from: startDate)
             result.workEnd = calendar.component(.hour, from: endDate) * 60 + calendar.component(.minute, from: endDate)
+            result.lunchStart = calendar.component(.hour, from: lunchStartDate) * 60 + calendar.component(.minute, from: lunchStartDate)
+            result.lunchEnd = calendar.component(.hour, from: lunchEndDate) * 60 + calendar.component(.minute, from: lunchEndDate)
             try save(result.validated())
         } catch { self.error = error.localizedDescription }
     }

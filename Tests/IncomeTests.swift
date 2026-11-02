@@ -53,6 +53,62 @@ struct IncomeTests {
             do { _ = try bad.validated(); fatalError("Invalid settings accepted") }
             catch { print("PASS: rejects invalid settings (\(error.localizedDescription))") }
         }
+        settings = IncomeSettings()
+        settings.monthlySalary = 6000
+        settings.workStart = 600
+        settings.workEnd = 1080
+        settings.lunchEnabled = true
+        settings.lunchStart = 720
+        settings.lunchEnd = 780
+        settings.lunchPaid = false
+        let dayPay = 6000.0 / 21.75
+        let expectedBeforeLunch = dayPay * 2 / 7
+        check("unpaid lunch starts with correct earned amount", abs(snapshot(26, 12).earned - expectedBeforeLunch) < 1e-8)
+        check("unpaid lunch amount stays constant", snapshot(26, 12).earned == snapshot(26, 12, 59).earned)
+        check("unpaid lunch progress stays constant", snapshot(26, 12).progress == snapshot(26, 12, 30).progress)
+        check("lunch status at start boundary", snapshot(26, 12).status == .lunch)
+        check("resume work at end boundary", snapshot(26, 13).status == .working)
+        check("no jump at unpaid lunch end", snapshot(26, 13).earned == snapshot(26, 12).earned)
+        check("afternoon income resumes", abs(snapshot(26, 14).earned - dayPay * 3 / 7) < 1e-8)
+        check("daily income remains unchanged", abs(snapshot(26, 18).earned - dayPay) < 1e-8)
+        check("unpaid hourly rate uses seven hours", abs(snapshot(26, 14).perHour - dayPay / 7) < 1e-8)
+        check("lunch countdown targets return to work", snapshot(26, 12, 30).timingLabel(now: date(26, 12, 30)) == "距上班 30分钟")
+        check("lunch does not activate on rest day", snapshot(31, 12, 30).status == .rest && snapshot(31, 12, 30).earned == 0)
+        settings.lunchPaid = true
+        check("paid lunch keeps accumulating", snapshot(26, 12, 30).earned > snapshot(26, 12).earned)
+        check("paid lunch still identifies lunch status", snapshot(26, 12, 30).status == .lunch)
+        check("paid lunch retains eight-hour rate", abs(snapshot(26, 14).perHour - dayPay / 8) < 1e-8)
+        settings.lunchEnabled = false
+        check("disabled lunch keeps original formula", snapshot(26, 12, 30).status == .working && abs(snapshot(26, 12, 30).earned - dayPay * 2.5 / 8) < 1e-8)
+        settings.lunchEnabled = true
+        settings.lunchPaid = false
+        settings.workStart = 22 * 60
+        settings.workEnd = 6 * 60
+        settings.lunchStart = 1 * 60
+        settings.lunchEnd = 2 * 60
+        _ = try settings.validated()
+        check("overnight lunch belongs to Friday shift", snapshot(31, 1, 30).status == .lunch)
+        check("overnight unpaid lunch pauses income", snapshot(31, 1).earned == snapshot(31, 1, 59).earned)
+        check("overnight lunch resumes correctly", snapshot(31, 2).status == .working && abs(snapshot(31, 2).earned - dayPay * 3 / 7) < 1e-8)
+        settings.lunchStart = 23 * 60 + 30
+        settings.lunchEnd = 30
+        _ = try settings.validated()
+        check("lunch itself may cross midnight", snapshot(31, 0).status == .lunch && snapshot(31, 0, 30).status == .working)
+        for mutate in [
+            { (s: inout IncomeSettings) in s.lunchEnd = s.lunchStart },
+            { (s: inout IncomeSettings) in s.lunchStart = 20 * 60; s.lunchEnd = 21 * 60 },
+            { (s: inout IncomeSettings) in s.lunchStart = 5 * 60; s.lunchEnd = 7 * 60 },
+            { (s: inout IncomeSettings) in s.lunchStart = s.workStart; s.lunchEnd = s.workEnd },
+            { (s: inout IncomeSettings) in s.lunchStart = -1 }
+        ] {
+            var invalid = settings
+            mutate(&invalid)
+            do { _ = try invalid.validated(); fatalError("Invalid lunch accepted") }
+            catch { print("PASS: rejects invalid lunch (\(error.localizedDescription))") }
+        }
+        let legacyJSON = "{\"currency\":\"CNY\",\"monthlySalary\":6000,\"workStart\":600,\"workEnd\":1080,\"monthlyWorkdays\":21.75,\"workdays\":[1,2,3,4,5]}"
+        let legacy = try JSONDecoder().decode(IncomeSettings.self, from: Data(legacyJSON.utf8)).validated()
+        check("old settings load with lunch disabled", !legacy.lunchEnabled && legacy.monthlySalary == 6000 && legacy.workStart == 600)
         let encoded = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(IncomeSettings.self, from: encoded)
         check("settings survive JSON round trip", decoded == settings)

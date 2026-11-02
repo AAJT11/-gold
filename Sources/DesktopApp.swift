@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let index = CommandLine.arguments.firstIndex(of: "--status-file"), CommandLine.arguments.count > index + 1 {
             let status = SMAppService.mainApp.status
             let login = status == .enabled ? "enabled" : status == .requiresApproval ? "requiresApproval" : "notEnabled"
-            let state: [String: Any] = ["currency": store.settings.currency, "monthlySalary": store.settings.monthlySalary, "workStart": store.settings.workStart, "workEnd": store.settings.workEnd, "login": login, "presentation": "menu-bar-capsule", "progress": store.snapshot.progress, "earned": store.snapshot.earned]
+            let state: [String: Any] = ["currency": store.settings.currency, "monthlySalary": store.settings.monthlySalary, "workStart": store.settings.workStart, "workEnd": store.settings.workEnd, "login": login, "presentation": "menu-bar-capsule", "progress": store.snapshot.progress, "earned": store.snapshot.earned, "lunchEnabled": store.settings.lunchEnabled, "lunchStart": store.settings.lunchStart, "lunchEnd": store.settings.lunchEnd, "lunchPaid": store.settings.lunchPaid]
             if let data = try? JSONSerialization.data(withJSONObject: state, options: .prettyPrinted) {
                 try? data.write(to: URL(fileURLWithPath: CommandLine.arguments[index + 1]), options: .atomic)
             }
@@ -193,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             NotificationCenter.default.post(name: .incomeEditField, object: field)
             return
         }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 570), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 690), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "今日收入 · 工资与作息"
         window.isReleasedWhenClosed = false
         window.delegate = self
