@@ -45,8 +45,11 @@ python test_income_model.py
 # 直接运行
 python main.py
 
-# 打包为独立无黑框单文件 EXE (输出至 dist/今日收入.exe)
+# 打包为独立无黑框单文件绿色版 EXE (输出至 dist/今日收入.exe)
 python build_exe.py
+
+# 使用 Inno Setup 编译标准 Windows 安装包 (输出至 dist/今日收入-Windows-Setup-v1.0.0.exe)
+iscc setup.iss
 ```
 
 ### Windows 版文件结构
