@@ -93,7 +93,7 @@ class MainActivity : Activity() {
             pendingOverlayStart = false
             repo.isFloatingCapsuleEnabled = true
             startCapsuleService()
-            Toast.makeText(this, "状态栏灵动胶囊已开启，可自由拖动位置", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "屏幕悬浮触控胶囊已开启，可在屏幕任意位置自由拖动", Toast.LENGTH_SHORT).show()
         }
         handler.removeCallbacks(ticker)
         handler.post(ticker)
@@ -268,7 +268,7 @@ class MainActivity : Activity() {
         }
 
         btnToggleCapsule = Button(this).apply {
-            text = "开启状态栏悬浮灵动胶囊"
+            text = "开启屏幕悬浮触控胶囊"
             isAllCaps = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
@@ -295,7 +295,7 @@ class MainActivity : Activity() {
         btnCol.addView(btnOpenSettings)
 
         tvCapsuleHint = TextView(this).apply {
-            text = "支持顶部状态栏悬浮灵动胶囊、锁屏实时通知与桌面奢金微件。"
+            text = "类似辅助触控 (AssistiveTouch)，悬浮于屏幕内可随意拖动、轻触展开详情。"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             gravity = Gravity.CENTER
             setPadding(dp(4f), dp(12f), dp(4f), 0)
@@ -411,9 +411,9 @@ class MainActivity : Activity() {
     private fun styleButtons(isDark: Boolean) {
         val capsuleActive = repo.isFloatingCapsuleEnabled
         btnToggleCapsule.text = if (capsuleActive) {
-            "状态栏灵动胶囊已开启 (点击关闭)"
+            "屏幕悬浮触控胶囊已开启 (点击关闭)"
         } else {
-            "开启状态栏悬浮灵动胶囊"
+            "开启屏幕悬浮触控胶囊"
         }
 
         // Primary CTA (.btn-primary: Obsidian Black #1C1917 + Champagne Gold border)
@@ -474,7 +474,7 @@ class MainActivity : Activity() {
         repo.isFloatingCapsuleEnabled = true
         startCapsuleService()
         refreshDashboard()
-        Toast.makeText(this, "状态栏灵动胶囊已开启，可自由拖动至状态栏任意位置", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "屏幕悬浮触控胶囊已开启，可在屏幕任意位置自由拖动", Toast.LENGTH_SHORT).show()
     }
 
     private fun startCapsuleService() {

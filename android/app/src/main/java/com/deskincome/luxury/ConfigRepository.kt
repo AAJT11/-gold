@@ -64,10 +64,10 @@ class ConfigRepository(context: Context) {
         set(value) = prefs.edit().putBoolean("floating_capsule_enabled", value).apply()
 
     var capsuleX: Int
-        get() = prefs.getInt("capsule_x", -1)
-        set(value) = prefs.edit().putInt("capsule_x", value).apply()
+        get() = prefs.getInt("assistive_x", -1)
+        set(value) = prefs.edit().putInt("assistive_x", value).apply()
 
     var capsuleY: Int
-        get() = prefs.getInt("capsule_y", 16)
-        set(value) = prefs.edit().putInt("capsule_y", value).apply()
+        get() = prefs.getInt("assistive_y", -1)
+        set(value) = prefs.edit().putInt("assistive_y", value).apply()
 }

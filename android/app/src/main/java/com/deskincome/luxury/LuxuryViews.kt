@@ -171,6 +171,9 @@ class ChampagneProgressBarView(context: Context) : View(context) {
     }
 }
 
+/**
+ * AssistiveTouch-style floating luxury capsule pill that can be freely dragged anywhere on screen.
+ */
 class FloatingCapsulePillView(context: Context) : View(context) {
     var amountText: String = "¥0.00"
         set(value) {
@@ -187,22 +190,34 @@ class FloatingCapsulePillView(context: Context) : View(context) {
                 invalidate()
             }
         }
+    var progress: Float = 0f
+        set(value) {
+            val clamped = value.coerceIn(0f, 1f)
+            if (field != clamped) {
+                field = clamped
+                invalidate()
+            }
+        }
 
     private val rect = RectF()
+    private val progRect = RectF()
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
     }
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val progPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        textPaint.textSize = LuxuryTheme.dp(context, 13f)
+        textPaint.textSize = LuxuryTheme.dp(context, 14f)
         val textW = textPaint.measureText(amountText)
-        val desiredW = (textW + LuxuryTheme.dp(context, 38f)).toInt()
-        val desiredH = LuxuryTheme.dp(context, 30f).toInt()
+        val desiredW = (textW + LuxuryTheme.dp(context, 48f)).toInt()
+        val desiredH = LuxuryTheme.dp(context, 40f).toInt()
         setMeasuredDimension(
             resolveSize(desiredW, widthMeasureSpec),
             resolveSize(desiredH, heightMeasureSpec)
@@ -212,44 +227,83 @@ class FloatingCapsulePillView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val isDark = LuxuryTheme.isDark(context)
-        val stroke = LuxuryTheme.dp(context, 1.1f)
-        rect.set(stroke, stroke, width - stroke, height - stroke)
+        val pad = LuxuryTheme.dp(context, 2.5f)
+        rect.set(pad, pad, width - pad, height - pad)
         val radius = rect.height() / 2f
 
-        // Obsidian Black / Warm Alabaster Pill
-        val topBg = if (isDark) Color.argb(240, 28, 25, 23) else Color.argb(248, 250, 249, 246)
-        val botBg = if (isDark) Color.argb(245, 18, 16, 14) else Color.argb(245, 245, 243, 239)
+        // Soft outer halo / shadow for AssistiveTouch floating depth
+        shadowPaint.color = Color.argb(65, 18, 16, 14)
+        canvas.drawRoundRect(
+            RectF(rect.left, rect.top + LuxuryTheme.dp(context, 1.5f), rect.right, rect.bottom + LuxuryTheme.dp(context, 1.5f)),
+            radius,
+            radius,
+            shadowPaint
+        )
+
+        // Rich Obsidian Black / Warm Alabaster Pill Surface
+        val topBg = if (isDark) Color.argb(242, 28, 25, 23) else Color.argb(246, 28, 25, 23)
+        val botBg = if (isDark) Color.argb(248, 18, 16, 14) else Color.argb(248, 20, 18, 16)
         bgPaint.shader = LinearGradient(
             rect.left, rect.top, rect.left, rect.bottom,
             topBg, botBg, Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, bgPaint)
 
+        // Top Specular AssistiveTouch Glass Highlight
+        sheenPaint.shader = LinearGradient(
+            rect.left, rect.top, rect.left, rect.top + rect.height() * 0.5f,
+            Color.argb(48, 255, 255, 255),
+            Color.TRANSPARENT,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRoundRect(rect, radius, radius, sheenPaint)
+
+        // Subtle Bottom Champagne Gold Progress Line inside the Pill
+        if (progress > 0f) {
+            val barMargin = LuxuryTheme.dp(context, 12f)
+            val maxBarW = max(0f, rect.width() - barMargin * 2f)
+            val fillW = max(LuxuryTheme.dp(context, 4f), maxBarW * progress)
+            val barH = LuxuryTheme.dp(context, 2.2f)
+            progRect.set(
+                rect.left + barMargin,
+                rect.bottom - barH - LuxuryTheme.dp(context, 2.2f),
+                rect.left + barMargin + fillW,
+                rect.bottom - LuxuryTheme.dp(context, 2.2f)
+            )
+            progPaint.shader = LinearGradient(
+                progRect.left, progRect.top, progRect.right, progRect.bottom,
+                Color.parseColor("#D4AF37"),
+                Color.parseColor("#F3E5AB"),
+                Shader.TileMode.CLAMP
+            )
+            canvas.drawRoundRect(progRect, barH / 2f, barH / 2f, progPaint)
+        }
+
         // Champagne Gold Rim
-        borderPaint.strokeWidth = stroke
-        borderPaint.color = if (isDark) Color.argb(140, 212, 175, 55) else Color.argb(165, 197, 160, 89)
+        borderPaint.strokeWidth = LuxuryTheme.dp(context, 1.2f)
+        borderPaint.color = Color.argb(175, 212, 175, 55)
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
 
-        // Status Jewel Dot
+        // AssistiveTouch-style Concentric Jewel Indicator Dot
         val (dotColor, glowColor) = when (status) {
-            Status.WORKING -> Color.rgb(197, 155, 39) to Color.argb(95, 212, 175, 55)
-            Status.LUNCH -> Color.rgb(217, 119, 6) to Color.argb(90, 245, 158, 11)
-            Status.BEFORE -> Color.rgb(161, 98, 7) to Color.argb(75, 217, 119, 6)
-            Status.FINISHED -> (if (isDark) Color.rgb(245, 243, 239) else Color.rgb(28, 25, 23)) to Color.argb(80, 197, 160, 89)
-            Status.REST -> Color.rgb(120, 113, 108) to Color.argb(60, 120, 113, 108)
+            Status.WORKING -> Color.rgb(212, 175, 55) to Color.argb(95, 212, 175, 55)
+            Status.LUNCH -> Color.rgb(245, 158, 11) to Color.argb(90, 245, 158, 11)
+            Status.BEFORE -> Color.rgb(217, 119, 6) to Color.argb(75, 217, 119, 6)
+            Status.FINISHED -> Color.rgb(245, 243, 239) to Color.argb(80, 197, 160, 89)
+            Status.REST -> Color.rgb(168, 162, 158) to Color.argb(60, 168, 162, 158)
         }
         val cy = height / 2f
-        val dotX = LuxuryTheme.dp(context, 14f)
+        val dotX = LuxuryTheme.dp(context, 17f)
         dotPaint.color = glowColor
-        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 5.2f), dotPaint)
+        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 6.2f), dotPaint)
         dotPaint.color = dotColor
-        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.1f), dotPaint)
+        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.5f), dotPaint)
 
-        // Money Text
-        textPaint.textSize = LuxuryTheme.dp(context, 13f)
-        textPaint.color = if (isDark) Color.rgb(250, 249, 246) else Color.rgb(26, 26, 26)
+        // Crisp Alabaster/Gold Money Text
+        textPaint.textSize = LuxuryTheme.dp(context, 14f)
+        textPaint.color = Color.rgb(250, 249, 246)
         val fm = textPaint.fontMetrics
         val baseline = cy - (fm.ascent + fm.descent) / 2f
-        canvas.drawText(amountText, LuxuryTheme.dp(context, 24f), baseline, textPaint)
+        canvas.drawText(amountText, LuxuryTheme.dp(context, 28f), baseline, textPaint)
     }
 }
