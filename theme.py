@@ -211,30 +211,50 @@ def paint_native_popover_card(
     backdrop: Optional[QPixmap] = None,
     arrow_dir: str = "top",  # 'top' or 'bottom' or 'none'
     arrow_x: Optional[float] = None,
-    arrow_w: float = 18.0,
+    arrow_w: float = 20.0,
     arrow_h: float = 9.0
 ):
     """
-    Paints the native macOS-style frosted popover with top beak arrow pointing to capsule:
-    - Pure, frosted glassmorphism background
-    - Top triangular beak arrow (points to status bar capsule)
+    Paints the native macOS/Win11 frosted popover with smooth bezier-filleted beak arrow:
+    - Pure, frosted glassmorphism background with real desktop blur
+    - Bezier smoothed beak arrow (fillet radius ~2.5px, smooth horizontal base tangents)
     - 18px continuous rounded corners
-    - Crisp hairline border
+    - Multi-stage optical lighting: top diffuse sheen + 0.8px inner rim sheen
+    - Crisp 0.8px optical hairline perimeter border
     """
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
     path = QPainterPath()
+    tip_r = 2.5
+    tip_dx = 2.2
+    tip_dy = 1.0
+    half_w = arrow_w / 2.0
+
     if arrow_x is None:
         arrow_x = rect.center().x()
-    arrow_x = max(rect.left() + radius + arrow_w / 2.0, min(rect.right() - radius - arrow_w / 2.0, arrow_x))
 
     if arrow_dir == "top":
         card_top = rect.top() + arrow_h
         card_rect = QRectF(rect.left(), card_top, rect.width(), rect.height() - arrow_h)
+        arrow_x = max(card_rect.left() + radius + half_w, min(card_rect.right() - radius - half_w, arrow_x))
 
-        path.moveTo(arrow_x, rect.top())
-        path.lineTo(arrow_x + arrow_w / 2.0, card_top)
+        path.moveTo(card_rect.left() + radius, card_top)
+        path.lineTo(arrow_x - half_w, card_top)
+
+        # Smooth left flank (horizontal tangent at base -> ascending to tip fillet)
+        c1 = QPointF(arrow_x - arrow_w * 0.28, card_top)
+        c2 = QPointF(arrow_x - tip_dx - 2.5, rect.top() + tip_dy + 3.0)
+        path.cubicTo(c1, c2, QPointF(arrow_x - tip_dx, rect.top() + tip_dy))
+
+        # Tip fillet curve (radius ~2.5px)
+        path.quadTo(QPointF(arrow_x, rect.top()), QPointF(arrow_x + tip_dx, rect.top() + tip_dy))
+
+        # Smooth right flank (descending to card_top -> horizontal tangent at base)
+        c3 = QPointF(arrow_x + tip_dx + 2.5, rect.top() + tip_dy + 3.0)
+        c4 = QPointF(arrow_x + arrow_w * 0.28, card_top)
+        path.cubicTo(c3, c4, QPointF(arrow_x + half_w, card_top))
+
         path.lineTo(card_rect.right() - radius, card_top)
         path.arcTo(card_rect.right() - radius * 2, card_top, radius * 2, radius * 2, 90, -90)
         path.lineTo(card_rect.right(), card_rect.bottom() - radius)
@@ -243,32 +263,46 @@ def paint_native_popover_card(
         path.arcTo(card_rect.left(), card_rect.bottom() - radius * 2, radius * 2, radius * 2, 270, -90)
         path.lineTo(card_rect.left(), card_top + radius)
         path.arcTo(card_rect.left(), card_top, radius * 2, radius * 2, 180, -90)
-        path.lineTo(arrow_x - arrow_w / 2.0, card_top)
         path.closeSubpath()
+
     elif arrow_dir == "bottom":
         card_bottom = rect.bottom() - arrow_h
         card_rect = QRectF(rect.left(), rect.top(), rect.width(), rect.height() - arrow_h)
+        arrow_x = max(card_rect.left() + radius + half_w, min(card_rect.right() - radius - half_w, arrow_x))
 
         path.moveTo(card_rect.left() + radius, card_rect.top())
         path.lineTo(card_rect.right() - radius, card_rect.top())
         path.arcTo(card_rect.right() - radius * 2, card_rect.top(), radius * 2, radius * 2, 90, -90)
         path.lineTo(card_rect.right(), card_bottom - radius)
         path.arcTo(card_rect.right() - radius * 2, card_bottom - radius * 2, radius * 2, radius * 2, 0, -90)
-        path.lineTo(arrow_x + arrow_w / 2.0, card_bottom)
-        path.lineTo(arrow_x, rect.bottom())
-        path.lineTo(arrow_x - arrow_w / 2.0, card_bottom)
+
+        # Smooth right flank (horizontal tangent at base -> descending to bottom tip fillet)
+        path.lineTo(arrow_x + half_w, card_bottom)
+        c1 = QPointF(arrow_x + arrow_w * 0.28, card_bottom)
+        c2 = QPointF(arrow_x + tip_dx + 2.5, rect.bottom() - tip_dy - 3.0)
+        path.cubicTo(c1, c2, QPointF(arrow_x + tip_dx, rect.bottom() - tip_dy))
+
+        # Bottom tip fillet curve (radius ~2.5px)
+        path.quadTo(QPointF(arrow_x, rect.bottom()), QPointF(arrow_x - tip_dx, rect.bottom() - tip_dy))
+
+        # Smooth left flank (ascending to card_bottom -> horizontal tangent at base)
+        c3 = QPointF(arrow_x - tip_dx - 2.5, rect.bottom() - tip_dy - 3.0)
+        c4 = QPointF(arrow_x - arrow_w * 0.28, card_bottom)
+        path.cubicTo(c3, c4, QPointF(arrow_x - half_w, card_bottom))
+
         path.lineTo(card_rect.left() + radius, card_bottom)
         path.arcTo(card_rect.left(), card_bottom - radius * 2, radius * 2, radius * 2, 270, -90)
         path.lineTo(card_rect.left(), card_rect.top() + radius)
         path.arcTo(card_rect.left(), card_rect.top(), radius * 2, radius * 2, 180, -90)
         path.closeSubpath()
+
     else:
         path.addRoundedRect(rect, radius, radius)
 
     painter.save()
     painter.setClipPath(path)
 
-    # 1. Real Blurred Backdrop
+    # 1. Real Blurred Desktop Backdrop
     if backdrop and not backdrop.isNull():
         painter.drawPixmap(rect.toRect(), backdrop)
 
@@ -279,19 +313,42 @@ def paint_native_popover_card(
         bg_col = QColor(255, 255, 255, 230 if (backdrop and not backdrop.isNull()) else 248)
     painter.fillPath(path, QBrush(bg_col))
 
-    # 3. Soft Top Light Sheen
-    top_sheen = QLinearGradient(0, rect.top(), 0, rect.top() + 60)
-    top_sheen.setColorAt(0.0, QColor(255, 255, 255, 28 if is_dark else 160))
+    # 3. Diffuse Ambient Top Light Sheen
+    top_y = rect.top()
+    top_sheen = QLinearGradient(0, top_y, 0, top_y + 64)
+    top_sheen.setColorAt(0.0, QColor(255, 255, 255, 30 if is_dark else 165))
     top_sheen.setColorAt(1.0, QColor(255, 255, 255, 0))
-    painter.fillRect(QRectF(rect.left(), rect.top(), rect.width(), 60), QBrush(top_sheen))
+    painter.fillRect(QRectF(rect.left(), top_y, rect.width(), 64), QBrush(top_sheen))
+
+    # 4. 0.8px Inner Rim Sheen (Physical glass specular highlight along upper edge)
+    sheen_pen = QPen()
+    sheen_pen.setWidthF(1.2)
+    sheen_grad = QLinearGradient(0, rect.top(), 0, rect.bottom())
+    if is_dark:
+        sheen_grad.setColorAt(0.0, QColor(255, 255, 255, 70))
+        sheen_grad.setColorAt(0.35, QColor(255, 255, 255, 20))
+        sheen_grad.setColorAt(1.0, QColor(255, 255, 255, 6))
+    else:
+        sheen_grad.setColorAt(0.0, QColor(255, 255, 255, 235))
+        sheen_grad.setColorAt(0.35, QColor(255, 255, 255, 80))
+        sheen_grad.setColorAt(1.0, QColor(255, 255, 255, 15))
+    sheen_pen.setBrush(QBrush(sheen_grad))
+    painter.strokePath(path, sheen_pen)
 
     painter.restore()
 
-    # 4. Subtle Hairline Border
-    border_col = QColor(255, 255, 255, 32) if is_dark else QColor(0, 0, 0, 22)
-    painter.setPen(QPen(border_col, 0.8))
-    painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.drawPath(path)
+    # 5. Crisp 0.8px Optical Hairline Perimeter Border
+    border_pen = QPen()
+    border_pen.setWidthF(0.8)
+    border_grad = QLinearGradient(0, rect.top(), 0, rect.bottom())
+    if is_dark:
+        border_grad.setColorAt(0.0, QColor(255, 255, 255, 42))
+        border_grad.setColorAt(1.0, QColor(255, 255, 255, 20))
+    else:
+        border_grad.setColorAt(0.0, QColor(0, 0, 0, 22))
+        border_grad.setColorAt(1.0, QColor(0, 0, 0, 32))
+    border_pen.setBrush(QBrush(border_grad))
+    painter.strokePath(path, border_pen)
 
     painter.restore()
 

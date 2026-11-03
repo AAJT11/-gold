@@ -58,7 +58,8 @@ class NativeSlimProgressBar(QWidget):
             if self.is_million:
                 grad = QLinearGradient(fill_rect.topLeft(), fill_rect.topRight())
                 grad.setColorAt(0.0, QColor("#F59E0B"))
-                grad.setColorAt(1.0, QColor("#FBBF24"))
+                grad.setColorAt(0.48, QColor("#FBBF24"))
+                grad.setColorAt(1.0, QColor("#FCD34D"))
                 painter.setBrush(QBrush(grad))
             else:
                 fill_col = QColor(229, 231, 235) if is_dark else QColor(55, 65, 81, 220)
@@ -68,7 +69,7 @@ class NativeSlimProgressBar(QWidget):
 
 
 class NativePopoverCard(QFrame):
-    """Frosted Glass popover card with top beak arrow pointing to capsule."""
+    """Frosted Glass popover card with top/bottom smooth bezier beak arrow pointing to capsule."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.backdrop: Optional[QPixmap] = None
@@ -87,7 +88,7 @@ class NativePopoverCard(QFrame):
             backdrop=self.backdrop,
             arrow_dir=self.arrow_dir,
             arrow_x=self.arrow_x,
-            arrow_w=18.0,
+            arrow_w=20.0,
             arrow_h=9.0
         )
 
@@ -99,7 +100,7 @@ class LiquidSubPanel(QFrame):
 
 
 class NativeRollingAmountLabel(QWidget):
-    """Crisp, native system-font money label with smooth rolling & fast thousandths ticker."""
+    """Crisp, native system-font money label with baseline-aligned micro ¥ and monospaced anti-jitter rolling digits."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedHeight(50)
@@ -109,11 +110,12 @@ class NativeRollingAmountLabel(QWidget):
         self.transition_start_time = 0.0
         self.duration = 0.8
         self.is_working = False
+        self.is_million = False
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update)
 
-    def set_amount(self, text: str, is_working: bool):
+    def set_amount(self, text: str, is_working: bool, is_million: bool = False):
         now = time.monotonic()
         if not self.transition_to or not is_working:
             self.transition_from = text
@@ -126,18 +128,19 @@ class NativeRollingAmountLabel(QWidget):
 
         self.amount_text = text
         self.is_working = is_working
+        self.is_million = is_million
 
-        if is_working and self.isVisible():
+        if (is_working or is_million) and self.isVisible():
             if not self.timer.isActive():
                 self.timer.start(20)
         else:
-            if self.timer.isActive():
+            if not (is_working or is_million) and self.timer.isActive():
                 self.timer.stop()
             self.update()
 
     def showEvent(self, event):
         super().showEvent(event)
-        if self.is_working and not self.timer.isActive():
+        if (self.is_working or self.is_million) and not self.timer.isActive():
             self.timer.start(20)
 
     def hideEvent(self, event):
@@ -151,78 +154,112 @@ class NativeRollingAmountLabel(QWidget):
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
         is_dark = is_apps_dark_mode()
-        font = QFont("Segoe UI Variable Display", 32, QFont.Weight.Bold)
-        font.setStyleHint(QFont.StyleHint.SansSerif)
-        font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, -0.6)
-        painter.setFont(font)
-        metrics = QFontMetrics(font)
+        # Main font for numbers: 32pt bold
+        font_main = QFont("Segoe UI Variable Display", 32, QFont.Weight.Bold)
+        font_main.setStyleHint(QFont.StyleHint.SansSerif)
+        font_main.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, -0.6)
+
+        # Micro currency symbol font: scaled to ~75% of main size (24pt)
+        font_symbol = QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold)
+        font_symbol.setStyleHint(QFont.StyleHint.SansSerif)
+
+        metrics_main = QFontMetrics(font_main)
+        metrics_symbol = QFontMetrics(font_symbol)
 
         now = time.monotonic()
         progress = min(1.0, max(0.0, (now - self.transition_start_time) / self.duration))
         eased = progress * progress * (3.0 - 2.0 * progress)
         fast_phase = (now * 12.0) if self.is_working else None
 
-        old_str = self.transition_from or self.amount_text
-        new_str = self.transition_to or self.amount_text
-        count = max(len(old_str), len(new_str))
-        prev_chars = list(" " * (count - len(old_str)) + old_str)
-        next_chars = list(" " * (count - len(new_str)) + new_str)
+        # Separate ¥ currency symbol from digits to prevent symbol rolling artifacts
+        raw_old = self.transition_from or self.amount_text
+        raw_new = self.transition_to or self.amount_text
 
-        digit_w = metrics.horizontalAdvance("0")
+        has_symbol = raw_old.startswith("¥") or raw_new.startswith("¥")
+        old_num = raw_old[1:] if raw_old.startswith("¥") else raw_old
+        new_num = raw_new[1:] if raw_new.startswith("¥") else raw_new
+
+        count = max(len(old_num), len(new_num))
+        prev_chars = list(" " * (count - len(old_num)) + old_num)
+        next_chars = list(" " * (count - len(new_num)) + new_num)
+
+        # Standardize EVERY digit slot to metrics_main.horizontalAdvance("0") to eliminate jitter
+        digit_w = metrics_main.horizontalAdvance("0")
+        dot_w = metrics_main.horizontalAdvance(".")
+        comma_w = metrics_main.horizontalAdvance(",")
+
         widths = []
         for i in range(count):
             c1, c2 = prev_chars[i], next_chars[i]
-            if c1.isdigit() or c2.isdigit():
+            if c1 == "." or c2 == ".":
+                widths.append(dot_w)
+            elif c1 == "," or c2 == ",":
+                widths.append(comma_w)
+            elif c1.isdigit() or c2.isdigit() or (c1 == " " and c2 == " "):
                 widths.append(digit_w)
             else:
-                widths.append(max(metrics.horizontalAdvance(c1), metrics.horizontalAdvance(c2)))
+                widths.append(digit_w)
 
         clip_rect = QRectF(0.0, 0.0, self.width(), self.height())
         painter.save()
         painter.setClipRect(clip_rect)
 
-        ascent = metrics.ascent()
-        descent = metrics.descent()
+        # Shared baseline Y alignment
+        ascent = metrics_main.ascent()
+        descent = metrics_main.descent()
         base_y = self.height() / 2.0 + (ascent - descent) / 2.0
         slide_h = 32.0
 
-        cur_x = 0.0
         base_color = QColor("#F9FAFB") if is_dark else QColor("#111827")
+        ticker_color = QColor("#F59E0B") if self.is_million else base_color
+
+        cur_x = 0.0
+
+        # 1. Render micro currency symbol ¥ (75% size, baseline-aligned)
+        if has_symbol:
+            painter.setFont(font_symbol)
+            painter.setPen(base_color)
+            painter.drawText(QPointF(cur_x, base_y), "¥")
+            cur_x += metrics_symbol.horizontalAdvance("¥") + 3.0
+
+        # 2. Render digits with standardized slot width
+        painter.setFont(font_main)
 
         for i in range(count):
             a = prev_chars[i]
             b = next_chars[i]
             col_w = widths[i]
 
+            # Continuous rolling ticker on the thousandths place (last digit)
             if i == count - 1 and fast_phase is not None:
                 base_val = int(math.floor(fast_phase))
                 fraction = fast_phase - base_val
                 g1 = str(base_val % 10)
                 g2 = str((base_val + 1) % 10)
-                w1 = metrics.horizontalAdvance(g1)
-                w2 = metrics.horizontalAdvance(g2)
+                w1 = metrics_main.horizontalAdvance(g1)
+                w2 = metrics_main.horizontalAdvance(g2)
 
-                painter.setPen(base_color)
+                painter.setPen(ticker_color)
                 painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
                 painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)
 
             elif a == b:
                 if b != " ":
                     painter.setPen(base_color)
-                    wb = metrics.horizontalAdvance(b)
+                    wb = metrics_main.horizontalAdvance(b)
                     painter.drawText(QPointF(cur_x + (col_w - wb) / 2.0, base_y), b)
             else:
                 if progress < 1.0 and a != " ":
                     c_old = QColor(base_color)
                     c_old.setAlphaF(max(0.0, 1.0 - eased))
                     painter.setPen(c_old)
-                    wa = metrics.horizontalAdvance(a)
+                    wa = metrics_main.horizontalAdvance(a)
                     painter.drawText(QPointF(cur_x + (col_w - wa) / 2.0, base_y - slide_h * eased), a)
                 if progress > 0.0 and b != " ":
                     c_new = QColor(base_color)
                     c_new.setAlphaF(min(1.0, eased))
                     painter.setPen(c_new)
-                    wb = metrics.horizontalAdvance(b)
+                    wb = metrics_main.horizontalAdvance(b)
                     painter.drawText(QPointF(cur_x + (col_w - wb) / 2.0, base_y + slide_h * (1.0 - eased)), b)
 
             cur_x += col_w
@@ -258,7 +295,7 @@ class IncomeDetailsPopover(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
-        self.setFixedWidth(318)
+        self.setFixedWidth(336)
 
         self.init_ui()
 
@@ -305,17 +342,17 @@ class IncomeDetailsPopover(QWidget):
 
     def init_ui(self):
         outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(10, 10, 10, 10)
+        outer_layout.setContentsMargins(18, 18, 18, 22)
 
         self.card = NativePopoverCard(self)
         self.card.setObjectName("PopoverCard")
         outer_layout.addWidget(self.card)
 
-        # Soft floating drop shadow
+        # Multi-stage soft optical drop shadow with no hard cut
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(24)
-        shadow.setColor(QColor(0, 0, 0, 45))
-        shadow.setOffset(0, 6)
+        shadow.setBlurRadius(28)
+        shadow.setColor(QColor(0, 0, 0, 36 if is_apps_dark_mode() else 24))
+        shadow.setOffset(0, 5)
         self.card.setGraphicsEffect(shadow)
 
         self.card_layout = QVBoxLayout(self.card)
@@ -365,20 +402,20 @@ class IncomeDetailsPopover(QWidget):
         self.divider1.setFixedHeight(1)
         self.card_layout.addWidget(self.divider1)
 
-        # 5. Clean Details Rows (macOS native style)
+        # 5. Clean Details Rows with monospaced aligned numbers
         self.details_layout = QVBoxLayout()
         self.details_layout.setContentsMargins(0, 2, 0, 2)
         self.details_layout.setSpacing(9)
         self.detail_labels = []
 
-        self.val_hours = self.add_detail_row("工作时间", "09:00–18:00")
-        self.val_lunch = self.add_detail_row("午休", "12:30–14:00 · 不计薪")
-        self.lbl_salary, self.val_monthly = self.add_detail_row_with_label("月薪", "¥5,000.00")
-        self.val_daily = self.add_detail_row("日薪估算", "¥192.31")
-        self.val_hourly = self.add_detail_row("每小时", "¥21.37")
+        self.val_hours = self.add_detail_row("工作时间", "09:00–18:00", is_monospaced=False)
+        self.val_lunch = self.add_detail_row("午休", "12:30–14:00 · 不计薪", is_monospaced=False)
+        self.lbl_salary, self.val_monthly = self.add_detail_row_with_label("月薪", "¥5,000.00", is_monospaced=True)
+        self.val_daily = self.add_detail_row("日薪估算", "¥192.31", is_monospaced=True)
+        self.val_hourly = self.add_detail_row("每小时", "¥21.37", is_monospaced=True)
         self.card_layout.addLayout(self.details_layout)
 
-        # 6. 「百万年薪体验」Gold Gradient Pill Button
+        # 6. 「百万年薪体验」Champagne Gold Streamer Pill Button
         million_box = QVBoxLayout()
         million_box.setSpacing(4)
         million_box.setContentsMargins(0, 4, 0, 2)
@@ -427,17 +464,24 @@ class IncomeDetailsPopover(QWidget):
 
         self.update_styles()
 
-    def add_detail_row(self, label_text: str, default_val: str) -> QLabel:
-        _, val = self.add_detail_row_with_label(label_text, default_val)
+    def add_detail_row(self, label_text: str, default_val: str, is_monospaced: bool = False) -> QLabel:
+        _, val = self.add_detail_row_with_label(label_text, default_val, is_monospaced=is_monospaced)
         return val
 
-    def add_detail_row_with_label(self, label_text: str, default_val: str) -> Tuple[QLabel, QLabel]:
+    def add_detail_row_with_label(self, label_text: str, default_val: str, is_monospaced: bool = False) -> Tuple[QLabel, QLabel]:
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         lbl = QLabel(label_text, self.card)
         lbl.setFont(QFont("Microsoft YaHei UI", 9, QFont.Weight.Normal))
         val = QLabel(default_val, self.card)
-        val.setFont(QFont("Segoe UI Variable Display", 9, QFont.Weight.DemiBold))
+        if is_monospaced:
+            val_font = QFont("Cascadia Mono", 9, QFont.Weight.Medium)
+            val_font.setStyleHint(QFont.StyleHint.Monospace)
+            val_font.setFamilies(["Cascadia Mono", "Consolas", "Courier New", "monospace"])
+        else:
+            val_font = QFont("Segoe UI Variable Display", 9, QFont.Weight.DemiBold)
+        val.setFont(val_font)
+        val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(lbl)
         row.addStretch()
         row.addWidget(val)
@@ -495,30 +539,42 @@ class IncomeDetailsPopover(QWidget):
         # General text labels
         self.title_label.setStyleSheet(f"color: {fg_pri}; background: transparent;")
         self.timing_label.setStyleSheet(f"color: {fg_sec}; background: transparent;")
-        self.percent_label.setStyleSheet(f"color: {fg_sec}; background: transparent;")
+        if is_million:
+            self.percent_label.setStyleSheet("color: #F59E0B; font-weight: bold; background: transparent;")
+        else:
+            self.percent_label.setStyleSheet(f"color: {fg_sec}; background: transparent;")
         self.lbl_million_caption.setStyleSheet("color: #9CA3AF; background: transparent;")
 
         for lbl, val in self.detail_labels:
             lbl.setStyleSheet(f"color: {fg_sec}; background: transparent;")
             val.setStyleSheet(f"color: {fg_pri}; background: transparent;")
 
-        # Million Pill Button: Golden Yellow Gradient
+        # Million Pill Button: 3-tier Champagne Gold Streamer Gradient + Semi-transparent gold border
         self.btn_million.setStyleSheet("""
             QPushButton#MillionButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F59E0B, stop:0.55 #FBBF24, stop:1 #EAB308);
-                color: #78350F;
-                border: none;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0.85,
+                    stop:0 #F59E0B, stop:0.48 #FBBF24, stop:1 #FCD34D);
+                color: #5B2A08;
+                border: 1px solid rgba(251, 191, 36, 0.45);
                 border-radius: 18px;
+                font-family: "Microsoft YaHei UI", sans-serif;
                 font-weight: bold;
                 font-size: 13px;
-                padding: 6px 16px;
+                padding: 6px 18px;
             }
             QPushButton#MillionButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FBBF24, stop:0.55 #FCD34D, stop:1 #F59E0B);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0.85,
+                    stop:0 #FBBF24, stop:0.48 #FDE68A, stop:1 #F59E0B);
                 color: #451A03;
+                border: 1px solid rgba(253, 230, 138, 0.85);
             }
             QPushButton#MillionButton:pressed {
-                background-color: #D97706;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0.85,
+                    stop:0 #D97706, stop:0.5 #F59E0B, stop:1 #D97706);
+                color: #381500;
+                border: 1px solid rgba(217, 119, 6, 0.70);
+                padding-top: 7px;
+                padding-bottom: 5px;
             }
         """)
 
@@ -555,7 +611,7 @@ class IncomeDetailsPopover(QWidget):
 
         is_working = (snapshot.status == Status.WORKING)
         formatted_money = settings.money(snapshot.earned, digits=3 if is_working else 2)
-        self.amount_label.set_amount(formatted_money, is_working)
+        self.amount_label.set_amount(formatted_money, is_working, is_million=is_million)
         self.status_label.setText(snapshot.status_label)
         self.progress_bar.set_progress(snapshot.progress, snapshot.status, is_million=is_million)
         self.timing_label.setText(snapshot.timing_label(now))
@@ -640,9 +696,12 @@ class IncomeDetailsPopover(QWidget):
         shell = win32gui.FindWindow("Shell_TrayWnd", None)
         tb_rect = win32gui.GetWindowRect(shell) if shell else None
 
+        margins = self.layout().contentsMargins()
+        m_l, m_t, m_r, m_b = margins.left(), margins.top(), margins.right(), margins.bottom()
+
+        # Align horizontal center with anchor center
         x = anchor_rect.center().x() - self.width() // 2
         arrow_dir = "top"
-        y = anchor_rect.bottom() + 4
 
         if tb_rect:
             tb_l, tb_t, tb_r, tb_b = tb_rect
@@ -650,29 +709,36 @@ class IncomeDetailsPopover(QWidget):
             tb_h = tb_b - tb_t
             if tb_w >= tb_h:
                 if tb_b <= screen.height() // 2:
-                    y = max(tb_b, anchor_rect.bottom()) + 2
+                    # Top taskbar: popover appears below taskbar, arrow points UP
+                    target_tip_y = max(tb_b, anchor_rect.bottom()) + 2
+                    y = target_tip_y - m_t
                     arrow_dir = "top"
                 else:
-                    y = min(tb_t, anchor_rect.top()) - self.height() - 2
+                    # Bottom taskbar: popover appears above taskbar, arrow points DOWN
+                    target_tip_y = min(tb_t, anchor_rect.top()) - 2
+                    y = target_tip_y - (self.height() - m_b)
                     arrow_dir = "bottom"
             else:
                 y = anchor_rect.center().y() - self.height() // 2
                 arrow_dir = "top"
         else:
             if anchor_rect.bottom() > screen.height() // 2:
-                y = anchor_rect.top() - self.height() - 2
+                target_tip_y = anchor_rect.top() - 2
+                y = target_tip_y - (self.height() - m_b)
                 arrow_dir = "bottom"
             else:
-                y = anchor_rect.bottom() + 2
+                target_tip_y = anchor_rect.bottom() + 2
+                y = target_tip_y - m_t
                 arrow_dir = "top"
 
-        x = max(screen.left() + 8, min(screen.right() - self.width() - 8, x))
-        y = max(screen.top() + 6, min(screen.bottom() - self.height() - 8, y))
+        # Keep popover within screen boundaries
+        x = max(screen.left() + 4, min(screen.right() - self.width() - 4, x))
+        y = max(screen.top() + 4, min(screen.bottom() - self.height() - 4, y))
 
         self.card.arrow_dir = arrow_dir
         # Calculate arrow peak location relative to the card's local coordinates
         arrow_screen_x = anchor_rect.center().x()
-        self.card.arrow_x = float(arrow_screen_x - (x + self.card.x()))
+        self.card.arrow_x = float(arrow_screen_x - (x + m_l))
 
         # Adjust content margins according to arrow orientation
         if arrow_dir == "top":

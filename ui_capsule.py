@@ -52,7 +52,7 @@ class TaskbarCapsule(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setMouseTracking(True)
 
-        self.capsule_height = 25
+        self.capsule_height = 26
         self.capsule_width = 96
         self.resize(self.capsule_width, self.capsule_height)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -126,9 +126,10 @@ class TaskbarCapsule(QWidget):
         self._bind_taskbar_owner(shell)
         self.refresh_backdrop()
         QTimer.singleShot(50, lambda: self._bind_taskbar_owner(win32gui.FindWindow("Shell_TrayWnd", None)))
-        if self.snapshot and self.snapshot.status == Status.WORKING:
-            if not self.anim_timer.isActive():
-                self.anim_timer.start(20)
+        is_million = getattr(self.config_manager, "million_mode", False)
+        is_working = (self.snapshot and self.snapshot.status == Status.WORKING)
+        if (is_working or is_million) and not self.anim_timer.isActive():
+            self.anim_timer.start(20)
 
     def hideEvent(self, event):
         if self.anim_timer.isActive():
@@ -140,9 +141,10 @@ class TaskbarCapsule(QWidget):
         self.update()
 
     def _get_font(self) -> QFont:
-        # Playful, clean rounded sans-serif font
+        # High contrast, clean rounded sans-serif font matching Win11 native taskbar
         font = QFont("Segoe UI Variable Display", 9, QFont.Weight.Bold)
         font.setStyleHint(QFont.StyleHint.SansSerif)
+        font.setFamilies(["Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", "sans-serif"])
         return font
 
     def check_docking_and_theme(self):
@@ -153,6 +155,7 @@ class TaskbarCapsule(QWidget):
         self.snapshot = snapshot
         self.settings = settings
         is_working = (snapshot.status == Status.WORKING)
+        is_million = getattr(self.config_manager, "million_mode", False)
         # 3 decimal places when working (e.g. ¥108.745), 2 decimal places otherwise
         new_text = settings.money(snapshot.earned, digits=3 if is_working else 2)
 
@@ -170,11 +173,12 @@ class TaskbarCapsule(QWidget):
             self.amount_text = new_text
             self.recalc_size()
 
-        if is_working and self.isVisible():
+        needs_anim = (is_working or is_million)
+        if needs_anim and self.isVisible():
             if not self.anim_timer.isActive():
-                self.anim_timer.start(20)  # 50 fps smooth ticker
+                self.anim_timer.start(20)  # 50 fps smooth ticker & breathing halo
         else:
-            if self.anim_timer.isActive():
+            if not needs_anim and self.anim_timer.isActive():
                 self.anim_timer.stop()
             self.update()
 
@@ -232,7 +236,7 @@ class TaskbarCapsule(QWidget):
             rebar_rect = info["rebar_rect"]
 
             if is_horizontal:
-                ideal_h = min(28, max(22, tb_height - 6))
+                ideal_h = 26
                 if ideal_h != self.capsule_height:
                     self.capsule_height = ideal_h
                     self.resize(self.capsule_width, self.capsule_height)
@@ -323,36 +327,60 @@ class TaskbarCapsule(QWidget):
             backdrop=self.backdrop
         )
 
-        # Status Indicator Jewel Dot
+        # Status Indicator Jewel Dot with Breathing Micro-Glow
+        now = time.monotonic()
         is_million = getattr(self.config_manager, "million_mode", False)
         status = self.snapshot.status if self.snapshot else Status.WORKING
+
+        # Breathing cycle: organic sine oscillation
+        breath = 0.5 + 0.5 * math.sin(now * 2.5)
+
         if is_million:
-            dot_color = QColor("#F59E0B")          # Gold in Million Mode
-            glow_color = QColor(245, 158, 11, 120)
+            dot_color = QColor("#F59E0B")          # Champagne Gold in Million Mode
+            halo_r = 4.8 + 1.8 * breath
+            halo_alpha = int(75 + 85 * breath)
+            halo_color = QColor(245, 158, 11, halo_alpha)
         elif status == Status.WORKING:
             dot_color = QColor("#10B981")          # Fresh Mint
-            glow_color = QColor(16, 185, 129, 100) # Mint Halo
+            halo_r = 4.8 + 1.8 * breath
+            halo_alpha = int(70 + 80 * breath)
+            halo_color = QColor(16, 185, 129, halo_alpha)
         elif status == Status.LUNCH:
             dot_color = QColor("#F59E0B")          # Honey Amber
-            glow_color = QColor(245, 158, 11, 100)
+            halo_r = 4.5 + 1.2 * breath
+            halo_alpha = int(60 + 50 * breath)
+            halo_color = QColor(245, 158, 11, halo_alpha)
         elif status == Status.BEFORE:
             dot_color = QColor("#D97706")
-            glow_color = QColor(217, 119, 6, 80)
+            halo_r = 4.2
+            halo_color = QColor(217, 119, 6, 60)
         elif status == Status.FINISHED:
-            dot_color = QColor("#6B7280") if not is_dark else QColor("#9CA3AF")
-            glow_color = QColor(107, 114, 128, 70)
+            dot_color = QColor("#9CA3AF") if is_dark else QColor("#6B7280")
+            halo_r = 4.0
+            halo_color = QColor(107, 114, 128, 40)
         else:
             dot_color = QColor(107, 114, 128)
-            glow_color = QColor(107, 114, 128, 50)
+            halo_r = 4.0
+            halo_color = QColor(107, 114, 128, 30)
 
         center_y = self.height() / 2.0
         dot_x = 12.5
+
+        # Multi-stop soft radial glow with breathing halo
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(glow_color))
-        painter.drawEllipse(QPointF(dot_x, center_y), 5.0, 5.0)
+        radial = QRadialGradient(QPointF(dot_x, center_y), halo_r)
+        radial.setColorAt(0.0, halo_color)
+        radial.setColorAt(0.55, QColor(halo_color.red(), halo_color.green(), halo_color.blue(), int(halo_color.alpha() * 0.45)))
+        radial.setColorAt(1.0, QColor(halo_color.red(), halo_color.green(), halo_color.blue(), 0))
+        painter.setBrush(QBrush(radial))
+        painter.drawEllipse(QPointF(dot_x, center_y), halo_r, halo_r)
+
+        # Solid jewel core
         painter.setBrush(QBrush(dot_color))
         painter.drawEllipse(QPointF(dot_x, center_y), 3.0, 3.0)
-        painter.setBrush(QBrush(QColor(255, 255, 255, 230)))
+
+        # Crisp specular micro-highlight
+        painter.setBrush(QBrush(QColor(255, 255, 255, 235)))
         painter.drawEllipse(QPointF(dot_x - 0.9, center_y - 0.9), 1.0, 1.0)
 
         # Money Text with macOS main-branch per-digit rolling & thousandths ticker
@@ -360,7 +388,6 @@ class TaskbarCapsule(QWidget):
         painter.setFont(font)
         metrics = QFontMetrics(font)
 
-        now = time.monotonic()
         progress = min(1.0, max(0.0, (now - self.transition_start_time) / self.duration))
         eased = progress * progress * (3.0 - 2.0 * progress)  # Smooth cubic Hermite ease
         fast_phase = (now * 12.0) if (status == Status.WORKING) else None
@@ -399,8 +426,8 @@ class TaskbarCapsule(QWidget):
         slide_h = 15.0  # Vertical slide travel distance
 
         cur_x = start_x
-        base_color = QColor("#F9FAFB") if is_dark else QColor("#111827")
-        ticker_color = QColor("#F59E0B") if is_million else (QColor("#F9FAFB") if is_dark else QColor("#111827"))
+        base_color = QColor("#FFFFFF") if is_dark else QColor("#0F172A")
+        ticker_color = QColor("#F59E0B") if is_million else (QColor("#FFFFFF") if is_dark else QColor("#0F172A"))
 
         for i in range(count):
             a = prev_chars[i]
