@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect, QFrame, QApplication
 )
 from PyQt6.QtGui import (
-    QPainter, QColor, QFont, QPen, QBrush, QLinearGradient,
+    QPainter, QColor, QFont, QFontMetrics, QPen, QBrush, QLinearGradient,
     QPainterPath, QKeyEvent, QMouseEvent, QPixmap
 )
 import win32gui
