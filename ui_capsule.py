@@ -323,23 +323,27 @@ class TaskbarCapsule(QWidget):
             backdrop=self.backdrop
         )
 
-        # Status Indicator Jewel Dot (Mint Green / Honey Amber)
+        # Status Indicator Jewel Dot
+        is_million = getattr(self.config_manager, "million_mode", False)
         status = self.snapshot.status if self.snapshot else Status.WORKING
-        if status == Status.WORKING:
+        if is_million:
+            dot_color = QColor("#F59E0B")          # Gold in Million Mode
+            glow_color = QColor(245, 158, 11, 120)
+        elif status == Status.WORKING:
             dot_color = QColor("#10B981")          # Fresh Mint
-            glow_color = QColor(16, 185, 129, 115) # Mint Halo
+            glow_color = QColor(16, 185, 129, 100) # Mint Halo
         elif status == Status.LUNCH:
             dot_color = QColor("#F59E0B")          # Honey Amber
-            glow_color = QColor(245, 158, 11, 110)
+            glow_color = QColor(245, 158, 11, 100)
         elif status == Status.BEFORE:
-            dot_color = QColor("#D97706")          # Deep Amber
-            glow_color = QColor(217, 119, 6, 90)
+            dot_color = QColor("#D97706")
+            glow_color = QColor(217, 119, 6, 80)
         elif status == Status.FINISHED:
-            dot_color = QColor("#059669") if not is_dark else QColor("#A7F3D0")
-            glow_color = QColor(16, 185, 129, 95)
+            dot_color = QColor("#6B7280") if not is_dark else QColor("#9CA3AF")
+            glow_color = QColor(107, 114, 128, 70)
         else:
             dot_color = QColor(107, 114, 128)
-            glow_color = QColor(107, 114, 128, 60)
+            glow_color = QColor(107, 114, 128, 50)
 
         center_y = self.height() / 2.0
         dot_x = 12.5
@@ -395,8 +399,8 @@ class TaskbarCapsule(QWidget):
         slide_h = 15.0  # Vertical slide travel distance
 
         cur_x = start_x
-        base_color = QColor("#ECFDF5") if is_dark else QColor("#064E3B")
-        ticker_color = QColor("#FBBF24") if is_dark else QColor("#F59E0B")
+        base_color = QColor("#F9FAFB") if is_dark else QColor("#111827")
+        ticker_color = QColor("#F59E0B") if is_million else (QColor("#F9FAFB") if is_dark else QColor("#111827"))
 
         for i in range(count):
             a = prev_chars[i]

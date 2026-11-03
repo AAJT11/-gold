@@ -70,6 +70,7 @@ class DeskIncomeApp:
         self.popover.request_quit.connect(self.quit_app)
         self.popover.autostart_toggled.connect(self.set_autostart)
         self.popover.request_dock.connect(self.capsule.action_dock_triggered)
+        self.popover.million_mode_toggled.connect(self.on_million_mode_toggled)
 
         # 1-second update timer
         self.timer = QTimer()
@@ -95,14 +96,19 @@ class DeskIncomeApp:
             self.config_manager.save()
             QTimer.singleShot(400, self.show_settings)
 
+    def on_million_mode_toggled(self, enabled: bool):
+        self.config_manager.million_mode = enabled
+        self.tick()
+
     def tick(self):
         now = datetime.now()
-        snapshot = IncomeMath.snapshot(self.settings, now)
-        self.capsule.update_snapshot(snapshot, self.settings)
-        self.tray.update_snapshot(snapshot, self.settings)
+        eff_settings = self.config_manager.effective_settings
+        snapshot = IncomeMath.snapshot(eff_settings, now)
+        self.capsule.update_snapshot(snapshot, eff_settings)
+        self.tray.update_snapshot(snapshot, eff_settings)
 
         if self.popover.isVisible():
-            self.popover.update_data(snapshot, self.settings, now)
+            self.popover.update_data(snapshot, eff_settings, now)
 
     def toggle_popover_from_capsule(self):
         import time
@@ -112,9 +118,10 @@ class DeskIncomeApp:
             if time.monotonic() - getattr(self.popover, "last_hide_time", 0.0) < 0.28:
                 return
             now = datetime.now()
-            snapshot = IncomeMath.snapshot(self.settings, now)
+            eff_settings = self.config_manager.effective_settings
+            snapshot = IncomeMath.snapshot(eff_settings, now)
             self.popover.update_styles()
-            self.popover.update_data(snapshot, self.settings, now)
+            self.popover.update_data(snapshot, eff_settings, now)
             self.popover.position_near(self.capsule.geometry())
             self.popover.show()
             self.popover.activateWindow()
@@ -127,7 +134,8 @@ class DeskIncomeApp:
             if time.monotonic() - getattr(self.popover, "last_hide_time", 0.0) < 0.28:
                 return
             now = datetime.now()
-            snapshot = IncomeMath.snapshot(self.settings, now)
+            eff_settings = self.config_manager.effective_settings
+            snapshot = IncomeMath.snapshot(eff_settings, now)
             self.popover.update_styles()
             self.popover.update_data(snapshot, self.settings, now)
 

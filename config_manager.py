@@ -24,7 +24,17 @@ class ConfigManager:
         self.capsule_pos: Optional[Tuple[int, int]] = None
         self.has_launched = False
         self.show_capsule = True
+        self.million_mode = False
         self.load()
+
+    @property
+    def effective_settings(self) -> IncomeSettings:
+        if self.million_mode:
+            import copy
+            s = copy.deepcopy(self.settings)
+            s.monthly_salary = 1_000_000.0 / 12.0
+            return s
+        return self.settings
 
     def load(self):
         if not self.config_file.exists():
