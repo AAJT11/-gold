@@ -140,7 +140,8 @@ class TaskbarCapsule(QWidget):
         self.update()
 
     def _get_font(self) -> QFont:
-        font = QFont("Segoe UI", 9, QFont.Weight.Bold)
+        # Playful, clean rounded sans-serif font
+        font = QFont("Segoe UI Variable Display", 9, QFont.Weight.Bold)
         font.setStyleHint(QFont.StyleHint.SansSerif)
         return font
 
@@ -322,33 +323,33 @@ class TaskbarCapsule(QWidget):
             backdrop=self.backdrop
         )
 
-        # Status Indicator Jewel Dot (Luxury Gold / Warm Amber / Obsidian)
+        # Status Indicator Jewel Dot (Mint Green / Honey Amber)
         status = self.snapshot.status if self.snapshot else Status.WORKING
         if status == Status.WORKING:
-            dot_color = QColor(197, 155, 39)      # Imperial Champagne Gold (#C59B27)
-            glow_color = QColor(212, 175, 55, 95) # Soft Gold Halo
+            dot_color = QColor("#10B981")          # Fresh Mint
+            glow_color = QColor(16, 185, 129, 115) # Mint Halo
         elif status == Status.LUNCH:
-            dot_color = QColor(217, 119, 6)       # Warm Amber Gold (#D97706)
-            glow_color = QColor(245, 158, 11, 90)
+            dot_color = QColor("#F59E0B")          # Honey Amber
+            glow_color = QColor(245, 158, 11, 110)
         elif status == Status.BEFORE:
-            dot_color = QColor(161, 98, 7)
-            glow_color = QColor(217, 119, 6, 75)
+            dot_color = QColor("#D97706")          # Deep Amber
+            glow_color = QColor(217, 119, 6, 90)
         elif status == Status.FINISHED:
-            dot_color = QColor(28, 25, 23) if not is_dark else QColor(245, 243, 239)
-            glow_color = QColor(197, 160, 89, 80)
+            dot_color = QColor("#059669") if not is_dark else QColor("#A7F3D0")
+            glow_color = QColor(16, 185, 129, 95)
         else:
-            dot_color = QColor(120, 113, 108)
-            glow_color = QColor(120, 113, 108, 60)
+            dot_color = QColor(107, 114, 128)
+            glow_color = QColor(107, 114, 128, 60)
 
         center_y = self.height() / 2.0
         dot_x = 12.5
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(glow_color))
-        painter.drawEllipse(QPointF(dot_x, center_y), 4.8, 4.8)
+        painter.drawEllipse(QPointF(dot_x, center_y), 5.0, 5.0)
         painter.setBrush(QBrush(dot_color))
-        painter.drawEllipse(QPointF(dot_x, center_y), 2.8, 2.8)
-        painter.setBrush(QBrush(QColor(255, 250, 230, 220)))
-        painter.drawEllipse(QPointF(dot_x - 0.8, center_y - 0.8), 0.9, 0.9)
+        painter.drawEllipse(QPointF(dot_x, center_y), 3.0, 3.0)
+        painter.setBrush(QBrush(QColor(255, 255, 255, 230)))
+        painter.drawEllipse(QPointF(dot_x - 0.9, center_y - 0.9), 1.0, 1.0)
 
         # Money Text with macOS main-branch per-digit rolling & thousandths ticker
         font = self._get_font()
@@ -394,14 +395,15 @@ class TaskbarCapsule(QWidget):
         slide_h = 15.0  # Vertical slide travel distance
 
         cur_x = start_x
-        base_color = QColor(250, 249, 246) if is_dark else QColor(26, 26, 26)
+        base_color = QColor("#ECFDF5") if is_dark else QColor("#064E3B")
+        ticker_color = QColor("#FBBF24") if is_dark else QColor("#F59E0B")
 
         for i in range(count):
             a = prev_chars[i]
             b = next_chars[i]
             col_w = widths[i]
 
-            # Fast rolling thousandths ticker on the last digit
+            # Fast rolling thousandths ticker on the last digit (Honey Amber playful glow)
             if i == count - 1 and fast_phase is not None:
                 base_val = int(math.floor(fast_phase))
                 fraction = fast_phase - base_val
@@ -411,7 +413,7 @@ class TaskbarCapsule(QWidget):
                 w2 = metrics.horizontalAdvance(g2)
 
                 # Glyph rolling up smoothly
-                painter.setPen(base_color)
+                painter.setPen(ticker_color)
                 painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
                 # Next glyph rolling up from below
                 painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)

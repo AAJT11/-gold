@@ -90,7 +90,7 @@ class SettingsDialog(QDialog):
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(28)
-        shadow.setColor(QColor(0, 0, 0, 65))
+        shadow.setColor(QColor(6, 78, 59, 50))
         shadow.setOffset(0, 6)
         self.card.setGraphicsEffect(shadow)
 
@@ -98,17 +98,17 @@ class SettingsDialog(QDialog):
         main_layout.setContentsMargins(24, 20, 24, 20)
         main_layout.setSpacing(13)
 
-        # Header Row with Close Button (MAISON Luxury E-Commerce style)
+        # Header Row: Playful Claymorphism
         header_top = QHBoxLayout()
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
-        self.kicker_label = QLabel("BESPOKE CONFIGURATION · 专属定制", self.card)
-        k_font = QFont("Segoe UI", 7, QFont.Weight.Bold)
-        k_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1.6)
+        self.kicker_label = QLabel("🌱 快乐成长 · 工资与作息配置", self.card)
+        k_font = QFont("Microsoft YaHei UI", 8, QFont.Weight.Bold)
+        k_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 0.8)
         self.kicker_label.setFont(k_font)
         self.title_label = QLabel("工资与作息", self.card)
         self.title_label.setFont(QFont("Microsoft YaHei UI", 15, QFont.Weight.Bold))
-        self.subtitle_label = QLabel("设置仅保存在本机。高定香槟金液态玻璃视效与状态栏位置自动适配。", self.card)
+        self.subtitle_label = QLabel("设置仅保存在本机。清新薄荷与琥珀蜜糖 3D 软陶拟态视效。", self.card)
         self.subtitle_label.setFont(QFont("Microsoft YaHei UI", 9, QFont.Weight.Medium))
         title_box.addWidget(self.kicker_label)
         title_box.addWidget(self.title_label)
@@ -339,18 +339,18 @@ class SettingsDialog(QDialog):
 
     def update_styles(self):
         is_dark = is_apps_dark_mode()
-        fg = "#FAF9F6" if is_dark else "#1A1A1A"
-        fg_sec = "#A8A29E" if is_dark else "#57534E"
-        gold_accent = "#D4AF37" if is_dark else "#A16207"
-        input_bg = "rgba(28, 25, 23, 0.85)" if is_dark else "#FFFFFF"
-        border = "rgba(212, 175, 55, 0.30)" if is_dark else "#D6D3D1"
-        btn_bg = "rgba(255, 255, 255, 0.08)" if is_dark else "#FFFFFF"
-        btn_hover = "rgba(212, 175, 55, 0.18)" if is_dark else "#F5F3EF"
-        save_bg = "#D4AF37" if is_dark else "#1C1917"
-        save_fg = "#1C1917" if is_dark else "#FAF9F6"
-        save_border = "#E5C158" if is_dark else "#C5A059"
-        save_hover = "#E5C158" if is_dark else "#292524"
-        save_hover_fg = "#0C0A09" if is_dark else "#E5C158"
+        fg = "#ECFDF5" if is_dark else "#064E3B"
+        fg_sec = "#A7F3D0" if is_dark else "#047857"
+        amber_accent = "#FBBF24" if is_dark else "#F59E0B"
+        input_bg = "rgba(19, 56, 45, 0.85)" if is_dark else "#FFFFFF"
+        border = "rgba(52, 211, 153, 0.45)" if is_dark else "#A7F3D0"
+        btn_bg = "rgba(19, 56, 45, 0.85)" if is_dark else "#F0FDF4"
+        btn_hover = "rgba(52, 211, 153, 0.25)" if is_dark else "#D1FAE5"
+        save_bg = "#10B981"
+        save_fg = "#FFFFFF"
+        save_border = "#34D399" if is_dark else "#6EE7B7"
+        save_hover = "#059669"
+        save_hover_fg = "#FFFFFF"
 
         self.card.setStyleSheet(f"""
             QLabel {{
@@ -360,33 +360,33 @@ class SettingsDialog(QDialog):
             QLineEdit, QComboBox, QTimeEdit {{
                 background-color: {input_bg};
                 color: {fg};
-                border: 1px solid {border};
-                border-radius: 6px;
+                border: 1.8px solid {border};
+                border-radius: 10px;
                 padding: 5px 10px;
                 font-size: 12px;
             }}
             QLineEdit:focus, QComboBox:focus, QTimeEdit:focus {{
-                border: 1px solid {gold_accent};
+                border: 2px solid {amber_accent};
             }}
             QComboBox QAbstractItemView {{
-                background-color: {"#1C1917" if is_dark else "#FFFFFF"};
+                background-color: {"#0F2E24" if is_dark else "#FFFFFF"};
                 color: {fg};
                 selection-background-color: {save_bg};
                 selection-color: {save_fg};
-                border: 1px solid {border};
-                border-radius: 6px;
+                border: 1.8px solid {border};
+                border-radius: 10px;
             }}
             QPushButton {{
                 background-color: {btn_bg};
                 color: {fg};
-                border: 1px solid {border};
-                border-radius: 6px;
+                border: 1.8px solid {border};
+                border-radius: 10px;
                 padding: 6px 18px;
                 font-weight: 600;
             }}
             QPushButton:hover {{
                 background-color: {btn_hover};
-                border: 1px solid {save_border};
+                border: 1.8px solid {save_border};
             }}
             QPushButton#CloseButton {{
                 padding: 0px;
@@ -396,7 +396,8 @@ class SettingsDialog(QDialog):
             QPushButton#SaveButton {{
                 background-color: {save_bg};
                 color: {save_fg};
-                border: 1px solid {save_border};
+                border: 2px solid {save_border};
+                border-radius: 10px;
                 font-weight: 700;
             }}
             QPushButton#SaveButton:hover {{
@@ -409,7 +410,7 @@ class SettingsDialog(QDialog):
                 background: transparent;
             }}
         """)
-        self.kicker_label.setStyleSheet(f"color: {gold_accent}; background: transparent;")
+        self.kicker_label.setStyleSheet(f"color: {amber_accent}; background: transparent;")
         self.subtitle_label.setStyleSheet(f"color: {fg_sec}; background: transparent;")
         self.lbl_overnight_hint.setStyleSheet(f"color: {fg_sec}; background: transparent;")
         self.lbl_rules_hint.setStyleSheet(f"color: {fg_sec}; background: transparent;")
