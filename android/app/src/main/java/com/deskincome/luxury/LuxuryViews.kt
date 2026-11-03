@@ -319,7 +319,7 @@ class FloatingCapsulePillView(context: Context) : View(context) {
         val startX = clipLeft + maxOf(0f, (availW - totalW) / 2f)
         var curX = startX
 
-        val baseColor = if (isDark) Color.parseColor("#F9FAFB") else Color.parseColor("#111827")
+        val baseColor = if (isDark) Color.parseColor("#FFFFFF") else Color.parseColor("#0B1220")
         val tickerColor = if (isMillion) Color.parseColor("#F59E0B") else baseColor
 
         for (i in 0 until count) {
@@ -335,9 +335,14 @@ class FloatingCapsulePillView(context: Context) : View(context) {
                 val w1 = textPaint.measureText(d1)
                 val w2 = textPaint.measureText(d2)
 
+                canvas.save()
+                val capH = kotlin.math.abs(fm.ascent)
+                canvas.clipRect(curX, baseLineY - capH - LuxuryTheme.dp(context, 1.5f), curX + colW + 1f, baseLineY + fm.descent + LuxuryTheme.dp(context, 1.5f))
+                val tickH = capH + LuxuryTheme.dp(context, 4f)
                 textPaint.color = tickerColor
-                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, textPaint)
-                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), textPaint)
+                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - tickH * fraction, textPaint)
+                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + tickH * (1f - fraction), textPaint)
+                canvas.restore()
             } else if (a == b) {
                 if (b != ' ') {
                     textPaint.color = baseColor
@@ -437,7 +442,7 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val isDark = LuxuryTheme.isDark(context)
-        val fgPri = if (isDark) Color.parseColor("#F9FAFB") else Color.parseColor("#111827")
+        val fgPri = if (isDark) Color.parseColor("#FFFFFF") else Color.parseColor("#0B1220")
         val tickerColor = if (isMillion) Color.parseColor("#F59E0B") else fgPri
 
         textPaint.textSize = LuxuryTheme.dp(context, 38f)
@@ -487,9 +492,14 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
                 val w1 = p.measureText(d1)
                 val w2 = p.measureText(d2)
 
+                canvas.save()
+                val capH = kotlin.math.abs(fm.ascent)
+                canvas.clipRect(curX, baseLineY - capH - LuxuryTheme.dp(context, 2f), curX + colW + 2f, baseLineY + fm.descent + LuxuryTheme.dp(context, 2f))
+                val tickH = capH + LuxuryTheme.dp(context, 6f)
                 p.color = tickerColor
-                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, p)
-                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), p)
+                canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - tickH * fraction, p)
+                canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + tickH * (1f - fraction), p)
+                canvas.restore()
             } else if (a == b) {
                 if (b != ' ') {
                     p.color = if (isMilli) tickerColor else fgPri
