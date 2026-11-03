@@ -65,8 +65,14 @@ class LiquidGlassCardContainer(context: Context) : FrameLayout(context) {
         val arrowX = rect.centerX()
 
         if (hasTopArrow) {
-            cardPath.moveTo(arrowX, rect.top)
-            cardPath.lineTo(arrowX + arrowW / 2f, cardTop)
+            val filletR = LuxuryTheme.dp(context, 2.5f)
+            val baseW = arrowW / 2f
+
+            cardPath.moveTo(rect.left + radius, cardTop)
+            cardPath.lineTo(arrowX - baseW, cardTop)
+            cardPath.quadTo(arrowX - baseW * 0.45f, cardTop, arrowX - filletR, rect.top + filletR * 0.8f)
+            cardPath.quadTo(arrowX, rect.top, arrowX + filletR, rect.top + filletR * 0.8f)
+            cardPath.quadTo(arrowX + baseW * 0.45f, cardTop, arrowX + baseW, cardTop)
             cardPath.lineTo(rect.right - radius, cardTop)
             cardPath.arcTo(RectF(rect.right - radius * 2f, cardTop, rect.right, cardTop + radius * 2f), -90f, 90f)
             cardPath.lineTo(rect.right, rect.bottom - radius)
@@ -75,7 +81,6 @@ class LiquidGlassCardContainer(context: Context) : FrameLayout(context) {
             cardPath.arcTo(RectF(rect.left, rect.bottom - radius * 2f, rect.left + radius * 2f, rect.bottom), 90f, 90f)
             cardPath.lineTo(rect.left, cardTop + radius)
             cardPath.arcTo(RectF(rect.left, cardTop, rect.left + radius * 2f, cardTop + radius * 2f), 180f, 90f)
-            cardPath.lineTo(arrowX - arrowW / 2f, cardTop)
             cardPath.close()
         } else {
             cardPath.addRoundRect(rect, radius, radius, Path.Direction.CW)
@@ -263,28 +268,46 @@ class FloatingCapsulePillView(context: Context) : View(context) {
         borderPaint.color = if (isDark) Color.argb(32, 255, 255, 255) else Color.argb(20, 0, 0, 0)
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
 
-        // Jewel Dot
-        val (dotColor, glowColor) = if (isMillion) {
-            Color.parseColor("#F59E0B") to Color.argb(110, 245, 158, 11)
+        // Jewel Dot with Breathing Micro-Glow
+        val now = System.currentTimeMillis()
+        val breath = 0.5f + 0.5f * kotlin.math.sin((now % 100000L) * 0.003f).toFloat()
+        val haloR = LuxuryTheme.dp(context, 4.6f + 2.0f * breath)
+        val haloAlpha = (70 + 85 * breath).toInt().coerceIn(0, 255)
+
+        val (coreColor, baseHaloColor) = if (isMillion) {
+            Color.parseColor("#F59E0B") to Color.rgb(245, 158, 11)
         } else {
             when (status) {
-                Status.WORKING -> Color.parseColor("#10B981") to Color.argb(90, 16, 185, 129)
-                Status.LUNCH -> Color.parseColor("#F59E0B") to Color.argb(90, 245, 158, 11)
-                Status.BEFORE -> Color.parseColor("#D97706") to Color.argb(75, 217, 119, 6)
-                Status.FINISHED -> Color.parseColor("#6B7280") to Color.argb(60, 107, 114, 128)
-                Status.REST -> Color.parseColor("#9CA3AF") to Color.argb(50, 156, 163, 175)
+                Status.WORKING -> Color.parseColor("#10B981") to Color.rgb(16, 185, 129)
+                Status.LUNCH -> Color.parseColor("#F59E0B") to Color.rgb(245, 158, 11)
+                Status.BEFORE -> Color.parseColor("#D97706") to Color.rgb(217, 119, 6)
+                Status.FINISHED -> (if (isDark) Color.parseColor("#9CA3AF") else Color.parseColor("#6B7280")) to Color.rgb(107, 114, 128)
+                Status.REST -> (if (isDark) Color.parseColor("#9CA3AF") else Color.parseColor("#6B7280")) to Color.rgb(107, 114, 128)
             }
         }
         val cy = height / 2f
-        val dotX = LuxuryTheme.dp(context, 15f)
-        dotPaint.color = glowColor
-        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 5.5f), dotPaint)
-        dotPaint.color = dotColor
+        val dotX = LuxuryTheme.dp(context, 14.5f)
+
+        // Radial breathing glow
+        dotPaint.shader = android.graphics.RadialGradient(
+            dotX, cy, haloR,
+            Color.argb(haloAlpha, Color.red(baseHaloColor), Color.green(baseHaloColor), Color.blue(baseHaloColor)),
+            Color.TRANSPARENT,
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawCircle(dotX, cy, haloR, dotPaint)
+        dotPaint.shader = null
+
+        // Solid jewel core
+        dotPaint.color = coreColor
         canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.2f), dotPaint)
+
+        // Specular micro-highlight
+        dotPaint.color = Color.argb(235, 255, 255, 255)
+        canvas.drawCircle(dotX - LuxuryTheme.dp(context, 0.9f), cy - LuxuryTheme.dp(context, 0.9f), LuxuryTheme.dp(context, 1.0f), dotPaint)
 
         // Text rendering with smooth rolling
         textPaint.textSize = LuxuryTheme.dp(context, 13.5f)
-        val now = System.currentTimeMillis()
         val isWorking = (status == Status.WORKING)
         val progressVal = ((now - transitionStartTime).toFloat() / durationMs).coerceIn(0f, 1f)
         val eased = progressVal * progressVal * (3f - 2f * progressVal)
@@ -371,7 +394,7 @@ class FloatingCapsulePillView(context: Context) : View(context) {
             transitionFrom = transitionTo
         }
 
-        if (isWorking && isAttachedToWindow) {
+        if (isAttachedToWindow) {
             postInvalidateOnAnimation()
         }
     }
@@ -532,7 +555,7 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
             transitionFrom = transitionTo
         }
 
-        if (isWorking && isAttachedToWindow) {
+        if (isAttachedToWindow) {
             postInvalidateOnAnimation()
         }
     }

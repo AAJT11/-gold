@@ -260,12 +260,13 @@ class MainActivity : Activity() {
             isAllCaps = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            setTextColor(Color.parseColor("#1F2937"))
+            setTextColor(Color.parseColor("#5B2A08"))
             background = GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"))
+                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"), Color.parseColor("#FCD34D"))
             ).apply {
-                cornerRadius = dp(20f).toFloat()
+                cornerRadius = dp(21f).toFloat()
+                setStroke(dp(1.2f), Color.parseColor("#73FBBF24"))
             }
             val lp = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -371,7 +372,7 @@ class MainActivity : Activity() {
         val valView = TextView(this).apply {
             text = defaultVal
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            typeface = Typeface.MONOSPACE
         }
         row.addView(lblView)
         row.addView(valView)

@@ -292,16 +292,17 @@ class FloatingCapsuleService : Service() {
         val btnMillion = Button(this).apply {
             text = if (repo.isMillionMode) "↶ 退出百万年薪体验" else "✨ 体验百万年薪"
             isAllCaps = false
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            setTextColor(Color.parseColor("#1F2937"))
+            setTextColor(Color.parseColor("#5B2A08"))
             background = GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"))
+                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"), Color.parseColor("#FCD34D"))
             ).apply {
-                cornerRadius = dp(19f).toFloat()
+                cornerRadius = dp(20f).toFloat()
+                setStroke(dp(1f), Color.parseColor("#73FBBF24"))
             }
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38f))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40f))
             setPadding(0, 0, 0, 0)
             setOnClickListener {
                 repo.isMillionMode = !repo.isMillionMode
@@ -397,7 +398,8 @@ class FloatingCapsuleService : Service() {
         val valView = TextView(this).apply {
             text = defaultVal
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            typeface = Typeface.MONOSPACE
+            gravity = Gravity.END
             setTextColor(Color.parseColor(if (isDark) "#FAF9F6" else "#111827"))
         }
         row.addView(lblView)
