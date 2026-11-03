@@ -239,9 +239,14 @@ class NativeRollingAmountLabel(QWidget):
                 w1 = metrics_main.horizontalAdvance(g1)
                 w2 = metrics_main.horizontalAdvance(g2)
 
+                painter.save()
+                cap_h = float(metrics_main.tightBoundingRect("0").height())
+                painter.setClipRect(QRectF(cur_x, base_y - cap_h - 3.0, col_w + 2.0, cap_h + 6.0))
+                tick_h = cap_h + 8.0
                 painter.setPen(ticker_color)
-                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
-                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)
+                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - tick_h * fraction), g1)
+                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + tick_h * (1.0 - fraction)), g2)
+                painter.restore()
 
             elif a == b:
                 if b != " ":
@@ -506,8 +511,8 @@ class IncomeDetailsPopover(QWidget):
         is_dark = is_apps_dark_mode()
         is_million = getattr(self.config_manager, "million_mode", False)
 
-        fg_pri = "#F9FAFB" if is_dark else "#111827"
-        fg_sec = "#9CA3AF" if is_dark else "#6B7280"
+        fg_pri = "#FFFFFF" if is_dark else "#0B1220"
+        fg_sec = "#D1D5DB" if is_dark else "#374151"
         divider_col = "rgba(255, 255, 255, 0.08)" if is_dark else "rgba(0, 0, 0, 0.07)"
 
         # Title Label
@@ -543,7 +548,7 @@ class IncomeDetailsPopover(QWidget):
             self.percent_label.setStyleSheet("color: #F59E0B; font-weight: bold; background: transparent;")
         else:
             self.percent_label.setStyleSheet(f"color: {fg_sec}; background: transparent;")
-        self.lbl_million_caption.setStyleSheet("color: #9CA3AF; background: transparent;")
+        self.lbl_million_caption.setStyleSheet(f"color: {fg_sec}; background: transparent;")
 
         for lbl, val in self.detail_labels:
             lbl.setStyleSheet(f"color: {fg_sec}; background: transparent;")
@@ -579,7 +584,7 @@ class IncomeDetailsPopover(QWidget):
         """)
 
         # Footer Text Buttons
-        btn_fg = "#9CA3AF" if is_dark else "#4B5563"
+        btn_fg = "#D1D5DB" if is_dark else "#374151"
         btn_hover = "#F3F4F6" if is_dark else "#111827"
         self.btn_edit.setStyleSheet(f"""
             QPushButton#SettingsTextButton {{

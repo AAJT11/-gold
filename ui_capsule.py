@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QWidget, QMenu, QApplication
 from PyQt6.QtGui import (
     QPainter, QColor, QFont, QFontMetrics, QPen, QBrush,
-    QMouseEvent, QCursor, QPixmap
+    QMouseEvent, QCursor, QPixmap, QRadialGradient
 )
 import win32gui
 import win32con
@@ -443,11 +443,14 @@ class TaskbarCapsule(QWidget):
                 w1 = metrics.horizontalAdvance(g1)
                 w2 = metrics.horizontalAdvance(g2)
 
-                # Glyph rolling up smoothly
+                painter.save()
+                cap_h = float(metrics.tightBoundingRect("0").height())
+                painter.setClipRect(QRectF(cur_x, base_y - cap_h - 2.0, col_w + 1.0, cap_h + 4.0))
+                tick_h = cap_h + 5.0
                 painter.setPen(ticker_color)
-                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - slide_h * fraction), g1)
-                # Next glyph rolling up from below
-                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + slide_h * (1.0 - fraction)), g2)
+                painter.drawText(QPointF(cur_x + (col_w - w1) / 2.0, base_y - tick_h * fraction), g1)
+                painter.drawText(QPointF(cur_x + (col_w - w2) / 2.0, base_y + tick_h * (1.0 - fraction)), g2)
+                painter.restore()
 
             elif a == b:
                 if b != " ":
