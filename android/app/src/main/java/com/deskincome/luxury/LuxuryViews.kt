@@ -24,12 +24,28 @@ object LuxuryTheme {
     fun dp(context: Context, dpVal: Float): Float {
         return dpVal * context.resources.displayMetrics.density
     }
+
+    // Educational Bubbly Claymorphism Tokens (Option C: Mint Green & Honey Amber)
+    const val COLOR_MINT_PRIMARY = 0xFF10B981.toInt()
+    const val COLOR_MINT_DEEP = 0xFF064E3B.toInt()
+    const val COLOR_MINT_LIGHT = 0xFFECFDF5.toInt()
+    const val COLOR_BORDER_MINT = 0xFFA7F3D0.toInt()
+    const val COLOR_AMBER_HONEY = 0xFFF59E0B.toInt()
+    const val COLOR_AMBER_LIGHT = 0xFFFDE68A.toInt()
+    const val COLOR_DARK_BG = 0xFF0A211A.toInt()
+    const val COLOR_DARK_CARD = 0xFF133A2E.toInt()
+    const val COLOR_DARK_BORDER = 0xFF34D399.toInt()
 }
 
+/**
+ * Bubbly 3D Claymorphism Card Container (Mint & Honey Amber).
+ */
 class LiquidGlassCardContainer(context: Context) : FrameLayout(context) {
     private val rect = RectF()
+    private val shadowRect = RectF()
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
     }
@@ -41,44 +57,70 @@ class LiquidGlassCardContainer(context: Context) : FrameLayout(context) {
 
     override fun onDraw(canvas: Canvas) {
         val isDark = LuxuryTheme.isDark(context)
-        val strokeW = LuxuryTheme.dp(context, 1.1f)
-        val radius = LuxuryTheme.dp(context, 18f)
+        val strokeW = LuxuryTheme.dp(context, 2.2f)
+        val radius = LuxuryTheme.dp(context, 22f)
         rect.set(strokeW, strokeW, width - strokeW, height - strokeW)
 
-        val bgStart = if (isDark) Color.argb(242, 28, 25, 23) else Color.argb(246, 250, 249, 246)
-        val bgEnd = if (isDark) Color.argb(246, 20, 18, 16) else Color.argb(248, 245, 243, 239)
+        // 1. Soft diffused green-tinted clay drop shadow
+        shadowPaint.color = if (isDark) Color.argb(85, 0, 0, 0) else Color.argb(40, 6, 78, 59)
+        shadowRect.set(rect.left, rect.top + LuxuryTheme.dp(context, 4f), rect.right, rect.bottom + LuxuryTheme.dp(context, 5f))
+        canvas.drawRoundRect(shadowRect, radius, radius, shadowPaint)
+
+        // 2. Puffy Clay Marshmallow Base Gradient
+        val bgStart = if (isDark) Color.argb(255, 25, 75, 60) else Color.argb(255, 255, 255, 255)
+        val bgEnd = if (isDark) Color.argb(255, 14, 42, 33) else Color.argb(255, 240, 253, 244)
         fillPaint.shader = LinearGradient(
-            rect.left, rect.top, rect.left, rect.bottom,
+            rect.left, rect.top, rect.right, rect.bottom,
             bgStart, bgEnd, Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, fillPaint)
 
-        // Subtle diagonal liquid glass sheen
+        // 3. Top-left 3D Inset Marshmallow Highlight Sheen
         clipPath.reset()
         clipPath.addRoundRect(rect, radius, radius, Path.Direction.CW)
         val save = canvas.save()
         canvas.clipPath(clipPath)
         sheenPaint.shader = LinearGradient(
-            rect.left, rect.top, rect.right, rect.top + rect.height() * 0.45f,
+            rect.left, rect.top, rect.left, rect.top + rect.height() * 0.42f,
             intArrayOf(
-                if (isDark) Color.argb(26, 212, 175, 55) else Color.argb(170, 255, 255, 255),
-                if (isDark) Color.argb(8, 212, 175, 55) else Color.argb(40, 255, 255, 255),
+                if (isDark) Color.argb(55, 52, 211, 153) else Color.argb(215, 255, 255, 255),
+                if (isDark) Color.argb(15, 52, 211, 153) else Color.argb(45, 255, 255, 255),
                 Color.TRANSPARENT
             ),
-            floatArrayOf(0f, 0.5f, 1f),
+            floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP
         )
         canvas.drawRect(rect, sheenPaint)
+
+        // Decorative Clay Top Accent Bar (Honey Amber & Fresh Mint)
+        val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val barMargin = LuxuryTheme.dp(context, 26f)
+        val barH = LuxuryTheme.dp(context, 3.2f)
+        val barRect = RectF(rect.left + barMargin, rect.top + strokeW / 2f, rect.right - barMargin, rect.top + strokeW / 2f + barH)
+        barPaint.shader = LinearGradient(
+            barRect.left, barRect.top, barRect.right, barRect.top,
+            intArrayOf(
+                Color.argb(0, 245, 158, 11),
+                Color.argb(220, 245, 158, 11),
+                Color.argb(240, 16, 185, 129),
+                Color.argb(220, 245, 158, 11),
+                Color.argb(0, 245, 158, 11)
+            ),
+            floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawRoundRect(barRect, barH / 2f, barH / 2f, barPaint)
+
         canvas.restoreToCount(save)
 
-        // Champagne Gold Rim
+        // 4. Chunky Tactile Clay Border (2.2dp)
         borderPaint.strokeWidth = strokeW
         borderPaint.shader = LinearGradient(
             rect.left, rect.top, rect.right, rect.bottom,
             intArrayOf(
-                if (isDark) Color.argb(120, 212, 175, 55) else Color.argb(145, 197, 160, 89),
-                if (isDark) Color.argb(45, 255, 255, 255) else Color.argb(220, 229, 226, 220),
-                if (isDark) Color.argb(95, 197, 160, 89) else Color.argb(120, 197, 160, 89)
+                if (isDark) Color.argb(180, 52, 211, 153) else Color.argb(255, 167, 243, 208),
+                if (isDark) Color.argb(130, 16, 185, 129) else Color.argb(240, 110, 231, 183),
+                if (isDark) Color.argb(110, 5, 150, 105) else Color.argb(220, 52, 211, 153)
             ),
             floatArrayOf(0f, 0.5f, 1f),
             Shader.TileMode.CLAMP
@@ -88,6 +130,9 @@ class LiquidGlassCardContainer(context: Context) : FrameLayout(context) {
     }
 }
 
+/**
+ * Claymorphism Sub-Panel Container for curated info.
+ */
 class LiquidSubPanelContainer(context: Context) : LinearLayout(context) {
     private val rect = RectF()
     private val accentRect = RectF()
@@ -104,33 +149,38 @@ class LiquidSubPanelContainer(context: Context) : LinearLayout(context) {
 
     override fun onDraw(canvas: Canvas) {
         val isDark = LuxuryTheme.isDark(context)
-        val strokeW = LuxuryTheme.dp(context, 1.0f)
-        val radius = LuxuryTheme.dp(context, 12f)
+        val strokeW = LuxuryTheme.dp(context, 1.8f)
+        val radius = LuxuryTheme.dp(context, 16f)
         rect.set(strokeW, strokeW, width - strokeW, height - strokeW)
 
-        val topColor = if (isDark) Color.argb(215, 38, 34, 31) else Color.argb(248, 255, 255, 255)
-        val botColor = if (isDark) Color.argb(215, 30, 27, 24) else Color.argb(244, 253, 252, 250)
+        // Soft White Mint Clay surface
+        val topColor = if (isDark) Color.argb(240, 22, 60, 48) else Color.argb(255, 255, 255, 255)
+        val botColor = if (isDark) Color.argb(240, 14, 40, 32) else Color.argb(252, 248, 253, 250)
         fillPaint.shader = LinearGradient(
             rect.left, rect.top, rect.left, rect.bottom,
             topColor, botColor, Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, fillPaint)
 
+        // Chunky Mint Border
         borderPaint.strokeWidth = strokeW
-        borderPaint.color = if (isDark) Color.argb(55, 212, 175, 55) else Color.rgb(229, 229, 229)
+        borderPaint.color = if (isDark) Color.argb(120, 52, 211, 153) else Color.argb(240, 167, 243, 208)
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
 
-        // Left Champagne Gold Editorial Accent Bar
-        val padV = LuxuryTheme.dp(context, 12f)
-        val barW = LuxuryTheme.dp(context, 2.6f)
-        accentRect.set(rect.left, rect.top + padV, rect.left + barW, max(rect.top + padV + barW, rect.bottom - padV))
-        accentPaint.color = if (isDark) Color.argb(200, 212, 175, 55) else Color.argb(215, 197, 160, 89)
+        // Left Fresh Mint Pill Indicator
+        val padV = LuxuryTheme.dp(context, 14f)
+        val barW = LuxuryTheme.dp(context, 3.2f)
+        accentRect.set(rect.left + strokeW, rect.top + padV, rect.left + strokeW + barW, max(rect.top + padV + barW, rect.bottom - padV))
+        accentPaint.color = if (isDark) Color.parseColor("#34D399") else Color.parseColor("#10B981")
         canvas.drawRoundRect(accentRect, barW / 2f, barW / 2f, accentPaint)
 
         super.onDraw(canvas)
     }
 }
 
+/**
+ * Claymorphism recessed groove trough + Honey Amber 3D Slider with top sheen.
+ */
 class ChampagneProgressBarView(context: Context) : View(context) {
     var progress: Float = 0f
         set(value) {
@@ -141,38 +191,62 @@ class ChampagneProgressBarView(context: Context) : View(context) {
     private val trackRect = RectF()
     private val fillRect = RectF()
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val isDark = LuxuryTheme.isDark(context)
-        trackRect.set(0f, 0f, width.toFloat(), height.toFloat())
+        val strokeW = LuxuryTheme.dp(context, 1.0f)
+        trackRect.set(strokeW, strokeW, width.toFloat() - strokeW, height.toFloat() - strokeW)
         val radius = trackRect.height() / 2f
 
-        trackPaint.color = if (isDark) Color.argb(38, 255, 255, 255) else Color.rgb(229, 226, 220)
+        // Recessed groove trough
+        trackPaint.color = if (isDark) Color.argb(160, 7, 59, 44) else Color.rgb(230, 244, 234)
         canvas.drawRoundRect(trackRect, radius, radius, trackPaint)
+
+        borderPaint.strokeWidth = strokeW
+        borderPaint.color = if (isDark) Color.argb(70, 52, 211, 153) else Color.argb(160, 167, 243, 208)
+        canvas.drawRoundRect(trackRect, radius, radius, borderPaint)
 
         if (progress > 0f) {
             val fillW = max(trackRect.height(), trackRect.width() * progress)
-            fillRect.set(0f, 0f, fillW, trackRect.height())
+            fillRect.set(trackRect.left, trackRect.top, trackRect.left + fillW, trackRect.bottom)
+
+            // Honey Amber 3D Slider (#F59E0B -> #FBBF24 -> #FCD34D)
             fillPaint.shader = LinearGradient(
                 fillRect.left, fillRect.top, fillRect.right, fillRect.bottom,
                 intArrayOf(
-                    Color.parseColor("#A16207"),
-                    Color.parseColor("#D4AF37"),
-                    Color.parseColor("#E5C158"),
-                    Color.parseColor("#B8860B")
+                    Color.parseColor("#F59E0B"),
+                    Color.parseColor("#FBBF24"),
+                    Color.parseColor("#FCD34D")
                 ),
-                floatArrayOf(0f, 0.45f, 0.75f, 1f),
+                floatArrayOf(0f, 0.55f, 1f),
                 Shader.TileMode.CLAMP
             )
             canvas.drawRoundRect(fillRect, radius, radius, fillPaint)
+
+            // Top soft specular sheen on the jelly slider
+            val sheenH = fillRect.height() * 0.45f
+            sheenPaint.shader = LinearGradient(
+                fillRect.left, fillRect.top, fillRect.left, fillRect.top + sheenH,
+                Color.argb(180, 255, 255, 255),
+                Color.argb(20, 255, 255, 255),
+                Shader.TileMode.CLAMP
+            )
+            canvas.save()
+            canvas.clipRect(fillRect)
+            canvas.drawRect(RectF(fillRect.left, fillRect.top, fillRect.right, fillRect.top + sheenH), sheenPaint)
+            canvas.restore()
         }
     }
 }
 
 /**
- * AssistiveTouch-style floating luxury capsule pill that can be freely dragged anywhere on screen.
+ * AssistiveTouch-style floating Bubbly 3D Claymorphism Pill View.
  */
 class FloatingCapsulePillView(context: Context) : View(context) {
     var amountText: String = "¥0.00"
@@ -233,8 +307,8 @@ class FloatingCapsulePillView(context: Context) : View(context) {
         textPaint.textSize = LuxuryTheme.dp(context, 14f)
         val ref = if (amountText.length >= 8) amountText else (amountText + "0")
         val textW = textPaint.measureText(ref)
-        val desiredW = (textW + LuxuryTheme.dp(context, 52f)).toInt()
-        val desiredH = LuxuryTheme.dp(context, 40f).toInt()
+        val desiredW = (textW + LuxuryTheme.dp(context, 54f)).toInt()
+        val desiredH = LuxuryTheme.dp(context, 42f).toInt()
         setMeasuredDimension(
             resolveSize(desiredW, widthMeasureSpec),
             resolveSize(desiredH, heightMeasureSpec)
@@ -248,39 +322,39 @@ class FloatingCapsulePillView(context: Context) : View(context) {
         rect.set(pad, pad, width - pad, height - pad)
         val radius = rect.height() / 2f
 
-        // Soft outer halo / shadow for AssistiveTouch floating depth
-        shadowPaint.color = Color.argb(65, 18, 16, 14)
+        // 1. Soft diffused green-tinted outer drop shadow
+        shadowPaint.color = if (isDark) Color.argb(70, 0, 0, 0) else Color.argb(40, 6, 78, 59)
         canvas.drawRoundRect(
-            RectF(rect.left, rect.top + LuxuryTheme.dp(context, 1.5f), rect.right, rect.bottom + LuxuryTheme.dp(context, 1.5f)),
+            RectF(rect.left, rect.top + LuxuryTheme.dp(context, 1.8f), rect.right, rect.bottom + LuxuryTheme.dp(context, 2.2f)),
             radius,
             radius,
             shadowPaint
         )
 
-        // Rich Obsidian Black / Warm Alabaster Pill Surface
-        val topBg = if (isDark) Color.argb(242, 28, 25, 23) else Color.argb(246, 28, 25, 23)
-        val botBg = if (isDark) Color.argb(248, 18, 16, 14) else Color.argb(248, 20, 18, 16)
+        // 2. Bubbly 3D Marshmallow Clay Surface (Fresh Mint White or Deep Emerald Clay)
+        val topBg = if (isDark) Color.argb(255, 27, 74, 60) else Color.argb(255, 255, 255, 255)
+        val botBg = if (isDark) Color.argb(255, 14, 44, 34) else Color.argb(255, 236, 253, 245)
         bgPaint.shader = LinearGradient(
             rect.left, rect.top, rect.left, rect.bottom,
             topBg, botBg, Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, bgPaint)
 
-        // Top Specular AssistiveTouch Glass Highlight
+        // 3. Top-left Inset Clay Curvature Sheen
         sheenPaint.shader = LinearGradient(
             rect.left, rect.top, rect.left, rect.top + rect.height() * 0.5f,
-            Color.argb(48, 255, 255, 255),
+            if (isDark) Color.argb(55, 52, 211, 153) else Color.argb(220, 255, 255, 255),
             Color.TRANSPARENT,
             Shader.TileMode.CLAMP
         )
         canvas.drawRoundRect(rect, radius, radius, sheenPaint)
 
-        // Subtle Bottom Champagne Gold Progress Line inside the Pill
+        // 4. Bottom Honey Amber Progress Line
         if (progress > 0f) {
-            val barMargin = LuxuryTheme.dp(context, 12f)
+            val barMargin = LuxuryTheme.dp(context, 14f)
             val maxBarW = max(0f, rect.width() - barMargin * 2f)
             val fillW = max(LuxuryTheme.dp(context, 4f), maxBarW * progress)
-            val barH = LuxuryTheme.dp(context, 2.2f)
+            val barH = LuxuryTheme.dp(context, 2.5f)
             progRect.set(
                 rect.left + barMargin,
                 rect.bottom - barH - LuxuryTheme.dp(context, 2.2f),
@@ -289,34 +363,41 @@ class FloatingCapsulePillView(context: Context) : View(context) {
             )
             progPaint.shader = LinearGradient(
                 progRect.left, progRect.top, progRect.right, progRect.bottom,
-                Color.parseColor("#D4AF37"),
-                Color.parseColor("#F3E5AB"),
+                Color.parseColor("#F59E0B"),
+                Color.parseColor("#FCD34D"),
                 Shader.TileMode.CLAMP
             )
             canvas.drawRoundRect(progRect, barH / 2f, barH / 2f, progPaint)
         }
 
-        // Champagne Gold Rim
-        borderPaint.strokeWidth = LuxuryTheme.dp(context, 1.2f)
-        borderPaint.color = Color.argb(175, 212, 175, 55)
+        // 5. Chunky Clay Rim (2.0dp)
+        borderPaint.strokeWidth = LuxuryTheme.dp(context, 2.0f)
+        borderPaint.shader = LinearGradient(
+            rect.left, rect.top, rect.right, rect.bottom,
+            if (isDark) Color.parseColor("#34D399") else Color.parseColor("#A7F3D0"),
+            if (isDark) Color.parseColor("#10B981") else Color.parseColor("#6EE7B7"),
+            Shader.TileMode.CLAMP
+        )
         canvas.drawRoundRect(rect, radius, radius, borderPaint)
 
-        // AssistiveTouch-style Concentric Jewel Indicator Dot
+        // Status Indicator Bubble Dot (Fresh Mint & Honey Amber)
         val (dotColor, glowColor) = when (status) {
-            Status.WORKING -> Color.rgb(212, 175, 55) to Color.argb(95, 212, 175, 55)
-            Status.LUNCH -> Color.rgb(245, 158, 11) to Color.argb(90, 245, 158, 11)
-            Status.BEFORE -> Color.rgb(217, 119, 6) to Color.argb(75, 217, 119, 6)
-            Status.FINISHED -> Color.rgb(245, 243, 239) to Color.argb(80, 197, 160, 89)
-            Status.REST -> Color.rgb(168, 162, 158) to Color.argb(60, 168, 162, 158)
+            Status.WORKING -> Color.parseColor("#10B981") to Color.argb(110, 16, 185, 129)
+            Status.LUNCH -> Color.parseColor("#F59E0B") to Color.argb(105, 245, 158, 11)
+            Status.BEFORE -> Color.parseColor("#D97706") to Color.argb(85, 217, 119, 6)
+            Status.FINISHED -> Color.parseColor("#059669") to Color.argb(95, 16, 185, 129)
+            Status.REST -> Color.parseColor("#6B7280") to Color.argb(60, 107, 114, 128)
         }
         val cy = height / 2f
         val dotX = LuxuryTheme.dp(context, 16f)
         dotPaint.color = glowColor
-        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 6.2f), dotPaint)
+        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 6.5f), dotPaint)
         dotPaint.color = dotColor
-        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.5f), dotPaint)
+        canvas.drawCircle(dotX, cy, LuxuryTheme.dp(context, 3.8f), dotPaint)
+        dotPaint.color = Color.WHITE
+        canvas.drawCircle(dotX - LuxuryTheme.dp(context, 1.0f), cy - LuxuryTheme.dp(context, 1.0f), LuxuryTheme.dp(context, 1.2f), dotPaint)
 
-        // Per-digit vertical rolling & thousandths continuous ticker (macOS parity)
+        // Per-digit vertical rolling & thousandths continuous ticker
         textPaint.textSize = LuxuryTheme.dp(context, 13.5f)
         val now = System.currentTimeMillis()
         val isWorking = (status == Status.WORKING)
@@ -353,6 +434,9 @@ class FloatingCapsulePillView(context: Context) : View(context) {
         val startX = clipLeft + maxOf(0f, (availW - totalW) / 2f)
         var curX = startX
 
+        val baseColor = if (isDark) Color.parseColor("#ECFDF5") else Color.parseColor("#064E3B")
+        val tickerColor = if (isDark) Color.parseColor("#FBBF24") else Color.parseColor("#F59E0B")
+
         for (i in 0 until count) {
             val a = prevChars[i]
             val b = nextChars[i]
@@ -366,25 +450,25 @@ class FloatingCapsulePillView(context: Context) : View(context) {
                 val w1 = textPaint.measureText(d1)
                 val w2 = textPaint.measureText(d2)
 
-                textPaint.color = Color.rgb(250, 249, 246)
+                textPaint.color = tickerColor
                 canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, textPaint)
                 canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), textPaint)
             } else if (a == b) {
                 if (b != ' ') {
-                    textPaint.color = Color.rgb(250, 249, 246)
+                    textPaint.color = baseColor
                     val wb = textPaint.measureText(b.toString())
                     canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY, textPaint)
                 }
             } else {
                 if (progressVal < 1f && a != ' ') {
                     val alphaOld = (255 * (1f - eased)).toInt().coerceIn(0, 255)
-                    textPaint.color = Color.argb(alphaOld, 250, 249, 246)
+                    textPaint.color = Color.argb(alphaOld, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
                     val wa = textPaint.measureText(a.toString())
                     canvas.drawText(a.toString(), curX + (colW - wa) / 2f, baseLineY - slideDist * eased, textPaint)
                 }
                 if (progressVal > 0f && b != ' ') {
                     val alphaNew = (255 * eased).toInt().coerceIn(0, 255)
-                    textPaint.color = Color.argb(alphaNew, 250, 249, 246)
+                    textPaint.color = Color.argb(alphaNew, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
                     val wb = textPaint.measureText(b.toString())
                     canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY + slideDist * (1f - eased), textPaint)
                 }
@@ -404,7 +488,7 @@ class FloatingCapsulePillView(context: Context) : View(context) {
 }
 
 /**
- * Editorial Luxury Serif amount roller for MainActivity dashboard.
+ * Friendly rounded bold amount roller for MainActivity dashboard.
  */
 class LuxuryRollerAmountView(context: Context) : View(context) {
     var amountText: String = "¥0.00"
@@ -440,18 +524,18 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
     private val durationMs: Long = 800L
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("serif", Typeface.BOLD)
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         letterSpacing = 0.01f
     }
     private val milliPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("serif", Typeface.BOLD)
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         letterSpacing = 0.01f
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         textPaint.textSize = LuxuryTheme.dp(context, 38f)
         val textW = textPaint.measureText(if (amountText.length >= 8) amountText else (amountText + "0"))
-        val desiredH = LuxuryTheme.dp(context, 48f).toInt()
+        val desiredH = LuxuryTheme.dp(context, 50f).toInt()
         val desiredW = textW.toInt() + LuxuryTheme.dp(context, 16f).toInt()
         setMeasuredDimension(
             resolveSize(desiredW, widthMeasureSpec),
@@ -462,13 +546,13 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val isDark = LuxuryTheme.isDark(context)
-        val fgPri = if (isDark) Color.parseColor("#FAF9F6") else Color.parseColor("#1A1A1A")
-        val goldAccent = if (isDark) Color.parseColor("#D4AF37") else Color.parseColor("#A16207")
+        val fgPri = if (isDark) Color.parseColor("#ECFDF5") else Color.parseColor("#064E3B")
+        val amberAccent = if (isDark) Color.parseColor("#FBBF24") else Color.parseColor("#F59E0B")
 
         textPaint.textSize = LuxuryTheme.dp(context, 38f)
         textPaint.color = fgPri
         milliPaint.textSize = LuxuryTheme.dp(context, 38f)
-        milliPaint.color = goldAccent
+        milliPaint.color = amberAccent
 
         val now = System.currentTimeMillis()
         val progress = ((now - transitionStartTime).toFloat() / durationMs).coerceIn(0f, 1f)
@@ -512,17 +596,17 @@ class LuxuryRollerAmountView(context: Context) : View(context) {
                 val w1 = p.measureText(d1)
                 val w2 = p.measureText(d2)
 
-                p.color = goldAccent
+                p.color = amberAccent
                 canvas.drawText(d1, curX + (colW - w1) / 2f, baseLineY - slideDist * fraction, p)
                 canvas.drawText(d2, curX + (colW - w2) / 2f, baseLineY + slideDist * (1f - fraction), p)
             } else if (a == b) {
                 if (b != ' ') {
-                    p.color = if (isMilli) goldAccent else fgPri
+                    p.color = if (isMilli) amberAccent else fgPri
                     val wb = p.measureText(b.toString())
                     canvas.drawText(b.toString(), curX + (colW - wb) / 2f, baseLineY, p)
                 }
             } else {
-                val baseCol = if (isMilli) goldAccent else fgPri
+                val baseCol = if (isMilli) amberAccent else fgPri
                 val r = Color.red(baseCol)
                 val g = Color.green(baseCol)
                 val bl = Color.blue(baseCol)

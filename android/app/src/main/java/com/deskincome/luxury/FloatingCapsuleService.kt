@@ -181,18 +181,19 @@ class FloatingCapsuleService : Service() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        val isDark = LuxuryTheme.isDark(this)
         val title = TextView(this).apply {
-            text = "今日收入 · 悬浮窗"
+            text = "🌱 今日收入 · 悬浮胶囊"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(Color.parseColor("#D4AF37"))
+            setTextColor(Color.parseColor(if (isDark) "#34D399" else "#10B981"))
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         val statusTv = TextView(this).apply {
             text = "正在赚钱"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(Color.parseColor("#F3E5AB"))
+            setTextColor(Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B"))
         }
         tvExpStatus = statusTv
         topRow.addView(title)
@@ -202,15 +203,15 @@ class FloatingCapsuleService : Service() {
         val amountTv = TextView(this).apply {
             text = "¥0.00"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-            typeface = Typeface.create("serif", Typeface.BOLD)
-            setTextColor(Color.parseColor("#FAF9F6"))
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isDark) "#ECFDF5" else "#064E3B"))
             setPadding(0, dp(6f), 0, dp(8f))
         }
         tvExpAmount = amountTv
         col.addView(amountTv)
 
         val prog = ChampagneProgressBarView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(6f))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(7f))
         }
         expProgressBar = prog
         col.addView(prog)
@@ -218,7 +219,7 @@ class FloatingCapsuleService : Service() {
         val timingTv = TextView(this).apply {
             text = "按工作时间自动计薪"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor("#A8A29E"))
+            setTextColor(Color.parseColor(if (isDark) "#A7F3D0" else "#047857"))
             setPadding(0, dp(6f), 0, dp(2f))
         }
         tvExpTiming = timingTv
@@ -227,7 +228,7 @@ class FloatingCapsuleService : Service() {
         val paydayTv = TextView(this).apply {
             text = "次月15日发薪"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor("#D4AF37"))
+            setTextColor(Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B"))
             setPadding(0, 0, 0, dp(10f))
         }
         tvExpPayday = paydayTv
@@ -240,12 +241,13 @@ class FloatingCapsuleService : Service() {
             text = "主面板"
             isAllCaps = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            setTextColor(Color.parseColor("#1C1917"))
+            setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
-                cornerRadius = dp(6f).toFloat()
-                setColor(Color.parseColor("#D4AF37"))
+                cornerRadius = dp(10f).toFloat()
+                setColor(Color.parseColor("#10B981"))
+                setStroke(dp(1.2f), Color.parseColor("#6EE7B7"))
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(32f), 1f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(34f), 1f).apply {
                 rightMargin = dp(6f)
             }
             setPadding(0, 0, 0, 0)
@@ -261,13 +263,13 @@ class FloatingCapsuleService : Service() {
             text = "收起"
             isAllCaps = false
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            setTextColor(Color.parseColor("#FAF9F6"))
+            setTextColor(Color.parseColor(if (isDark) "#A7F3D0" else "#064E3B"))
             background = GradientDrawable().apply {
-                cornerRadius = dp(6f).toFloat()
-                setColor(Color.parseColor("#292524"))
-                setStroke(dp(1f), Color.parseColor("#66D4AF37"))
+                cornerRadius = dp(10f).toFloat()
+                setColor(Color.parseColor(if (isDark) "#184639" else "#F0FDF4"))
+                setStroke(dp(1.5f), Color.parseColor(if (isDark) "#34D399" else "#A7F3D0"))
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(32f), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34f), 1f)
             setPadding(0, 0, 0, 0)
             setOnClickListener {
                 toggleExpanded(false)
