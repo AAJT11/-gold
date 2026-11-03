@@ -52,10 +52,13 @@ class MainActivity : Activity() {
     private lateinit var valHours: TextView
     private lateinit var valLunch: TextView
     private lateinit var valPayday: TextView
+    private lateinit var lblMonthly: TextView
     private lateinit var valMonthly: TextView
     private lateinit var valDaily: TextView
     private lateinit var valHourly: TextView
 
+    private lateinit var btnMillionHero: Button
+    private lateinit var lblMillionCaption: TextView
     private lateinit var btnToggleCapsule: Button
     private lateinit var btnOpenSettings: Button
     private lateinit var tvCapsuleHint: TextView
@@ -107,9 +110,8 @@ class MainActivity : Activity() {
 
     private fun applySystemBarsStyle() {
         val isDark = LuxuryTheme.isDark(this)
-        val barColor = Color.parseColor(if (isDark) "#0A211A" else "#F0FDF4")
-        window.statusBarColor = barColor
-        window.navigationBarColor = barColor
+        window.statusBarColor = if (isDark) Color.parseColor("#141210") else Color.parseColor("#F5F3EF")
+        window.navigationBarColor = if (isDark) Color.parseColor("#141210") else Color.parseColor("#F5F3EF")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val controller = window.insetsController
             if (!isDark) {
@@ -130,7 +132,7 @@ class MainActivity : Activity() {
         val isDark = LuxuryTheme.isDark(this)
         rootScroll = ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(Color.parseColor(if (isDark) "#0A211A" else "#F0FDF4"))
+            setBackgroundColor(if (isDark) Color.parseColor("#141210") else Color.parseColor("#F5F3EF"))
         }
 
         val outerCol = LinearLayout(this).apply {
@@ -138,18 +140,18 @@ class MainActivity : Activity() {
             setPadding(dp(18f), dp(22f), dp(18f), dp(28f))
         }
 
-        // Top Brand Editorial Banner: Playful Growth
+        // Top Brand Editorial Banner
         val brandRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(4f), 0, dp(4f), dp(14f))
         }
         val brandTag = TextView(this).apply {
-            text = "🌱 快乐成长 · 知识与财富生机盎然"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            text = "MAISON · DESKINCOME LUXURY EDITION"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            letterSpacing = 0.08f
-            setTextColor(Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B"))
+            letterSpacing = 0.16f
+            setTextColor(Color.parseColor(if (isDark) "#D4AF37" else "#A16207"))
         }
         brandRow.addView(brandTag)
         outerCol.addView(brandRow)
@@ -171,10 +173,10 @@ class MainActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         tvKicker = TextView(this).apply {
-            text = "🌱 TODAY INCOME · PLAYFUL CLAY"
+            text = "PRIVATE WEALTH · EXCLUSIVE"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            letterSpacing = 0.12f
+            letterSpacing = 0.14f
         }
         tvTitle = TextView(this).apply {
             text = "今日收入"
@@ -245,10 +247,50 @@ class MainActivity : Activity() {
         valHours = addDetailRow(subPanel, "工作时间", "09:00–18:00")
         valLunch = addDetailRow(subPanel, "午休时间", "12:30–14:00")
         valPayday = addDetailRow(subPanel, "发薪日", "次月15日")
-        valMonthly = addDetailRow(subPanel, "月薪", "¥5,000.00")
+        val (lblM, valM) = addDetailRowWithLabel(subPanel, if (repo.isMillionMode) "体验月薪" else "月薪", "¥5,000.00")
+        lblMonthly = lblM
+        valMonthly = valM
         valDaily = addDetailRow(subPanel, "日薪估算", "¥192.31")
         valHourly = addDetailRow(subPanel, "每小时", "¥25.64", isLast = true)
         cardContent.addView(subPanel)
+
+        // 「百万年薪体验」Gold Gradient Pill Button
+        btnMillionHero = Button(this).apply {
+            text = if (repo.isMillionMode) "↶ 退出百万年薪体验" else "✨ 体验百万年薪"
+            isAllCaps = false
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(Color.parseColor("#1F2937"))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"))
+            ).apply {
+                cornerRadius = dp(20f).toFloat()
+            }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(42f)
+            ).apply {
+                topMargin = dp(14f)
+            }
+            layoutParams = lp
+            setOnClickListener {
+                repo.isMillionMode = !repo.isMillionMode
+                refreshDashboard()
+                if (repo.isFloatingCapsuleEnabled) {
+                    startCapsuleService()
+                }
+            }
+        }
+        cardContent.addView(btnMillionHero)
+
+        lblMillionCaption = TextView(this).apply {
+            text = "体验金额 · 年薪 100 万 ÷ 12，退出后恢复真实工资"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(6f), 0, dp(4f))
+        }
+        cardContent.addView(lblMillionCaption)
 
         // Action Buttons Row
         val btnCol = LinearLayout(this).apply {
@@ -305,6 +347,16 @@ class MainActivity : Activity() {
         defaultVal: String,
         isLast: Boolean = false
     ): TextView {
+        val (_, valView) = addDetailRowWithLabel(container, label, defaultVal, isLast)
+        return valView
+    }
+
+    private fun addDetailRowWithLabel(
+        container: LinearLayout,
+        label: String,
+        defaultVal: String,
+        isLast: Boolean = false
+    ): Pair<TextView, TextView> {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -325,41 +377,50 @@ class MainActivity : Activity() {
         row.addView(valView)
         container.addView(row)
         detailRowPairs.add(lblView to valView)
-        return valView
+        return lblView to valView
     }
 
     private fun refreshDashboard() {
+        val effSettings = repo.loadEffectiveSettings()
         val now = ZonedDateTime.now()
-        val snap = IncomeMath.snapshot(settings, now)
+        val snap = IncomeMath.snapshot(effSettings, now)
         val isDark = LuxuryTheme.isDark(this)
+        val isMillion = repo.isMillionMode
 
-        val fgPri = Color.parseColor(if (isDark) "#ECFDF5" else "#064E3B")
-        val fgSec = Color.parseColor(if (isDark) "#A7F3D0" else "#047857")
-        val amberAccent = Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B")
+        val fgPri = Color.parseColor(if (isDark) "#FAF9F6" else "#1A1A1A")
+        val fgSec = Color.parseColor(if (isDark) "#A8A29E" else "#57534E")
+        val goldAccent = Color.parseColor(if (isDark) "#D4AF37" else "#A16207")
 
-        tvKicker.setTextColor(amberAccent)
+        tvKicker.setTextColor(goldAccent)
+        tvTitle.text = if (isMillion) "百万年薪体验" else "今日收入"
         tvTitle.setTextColor(fgPri)
         tvTiming.setTextColor(fgSec)
-        tvPercent.setTextColor(amberAccent)
+        tvPercent.setTextColor(goldAccent)
         tvCapsuleHint.setTextColor(fgSec)
+        lblMillionCaption.setTextColor(fgSec)
 
         val isWorking = (snap.status == Status.WORKING)
         heroAmountRoller.isWorking = isWorking
-        heroAmountRoller.amountText = settings.money(snap.earned, digits = if (isWorking) 3 else 2)
+        heroAmountRoller.isMillion = isMillion
+        heroAmountRoller.amountText = effSettings.money(snap.earned, digits = if (isWorking) 3 else 2)
 
         tvStatusBadge.text = snap.statusLabel
         styleStatusBadge(snap.status, isDark)
 
+        progressBar.isMillion = isMillion
         progressBar.progress = snap.progress.toFloat()
         tvTiming.text = snap.timingLabel(now)
         tvPercent.text = "${(snap.progress * 100.0).roundToInt()}%"
 
-        valHours.text = settings.hoursLabel
-        valLunch.text = settings.lunchLabel
-        valPayday.text = settings.paydayLabel(now)
-        valMonthly.text = settings.money(settings.monthlySalary, 2)
-        valDaily.text = settings.money(settings.dailySalary, 2)
-        valHourly.text = settings.money(settings.hourlySalary, 2)
+        valHours.text = effSettings.hoursLabel
+        valLunch.text = if (effSettings.hasLunchBreak) "${effSettings.lunchLabel} · 不计薪" else "无"
+        valPayday.text = effSettings.paydayLabel(now)
+        lblMonthly.text = if (isMillion) "体验月薪" else "月薪"
+        valMonthly.text = effSettings.money(effSettings.monthlySalary, 2)
+        valDaily.text = effSettings.money(effSettings.dailySalary, 2)
+        valHourly.text = effSettings.money(effSettings.hourlySalary, 2)
+
+        btnMillionHero.text = if (isMillion) "↶ 退出百万年薪体验" else "✨ 体验百万年薪"
 
         for ((lbl, value) in detailRowPairs) {
             lbl.setTextColor(fgSec)
@@ -371,17 +432,17 @@ class MainActivity : Activity() {
 
     private fun styleStatusBadge(status: Status, isDark: Boolean) {
         val (bgHex, fgHex, borderHex) = when (status) {
-            Status.WORKING -> if (isDark) Triple("#3810B981", "#6EE7B7", "#34D399") else Triple("#10B981", "#FFFFFF", "#A7F3D0")
-            Status.LUNCH -> if (isDark) Triple("#38F59E0B", "#FCD34D", "#FBBF24") else Triple("#F59E0B", "#FFFFFF", "#FDE68A")
-            Status.BEFORE -> if (isDark) Triple("#26F59E0B", "#FCD34D", "#FBBF24") else Triple("#FEF3C7", "#B45309", "#FDE68A")
-            Status.FINISHED -> if (isDark) Triple("#2610B981", "#A7F3D0", "#34D399") else Triple("#ECFDF5", "#047857", "#A7F3D0")
-            Status.REST -> if (isDark) Triple("#209CA3AF", "#D1D5DB", "#6B7280") else Triple("#F3F4F6", "#4B5563", "#E5E7EB")
+            Status.WORKING -> if (isDark) Triple("#2ED4AF37", "#F3E5AB", "#C5A059") else Triple("#1C1917", "#E5C158", "#C5A059")
+            Status.LUNCH -> if (isDark) Triple("#38D4AF37", "#FDE68A", "#D4AF37") else Triple("#FEF3C7", "#92400E", "#D4AF37")
+            Status.BEFORE -> if (isDark) Triple("#33D97706", "#FBBF24", "#D97706") else Triple("#FEF3C7", "#92400E", "#D97706")
+            Status.FINISHED -> if (isDark) Triple("#1AFFFFFF", "#E7E5E4", "#C5A059") else Triple("#F5F3EF", "#1C1917", "#C5A059")
+            Status.REST -> if (isDark) Triple("#14FFFFFF", "#A8A29E", "#57534E") else Triple("#F5F5F4", "#57534E", "#D6D3D1")
         }
         val gd = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(12f).toFloat()
+            cornerRadius = dp(6f).toFloat()
             setColor(Color.parseColor(bgHex))
-            setStroke(dp(1.8f), Color.parseColor(borderHex))
+            setStroke(dp(1f), Color.parseColor(borderHex))
         }
         tvStatusBadge.background = gd
         tvStatusBadge.setTextColor(Color.parseColor(fgHex))
@@ -395,30 +456,30 @@ class MainActivity : Activity() {
             "开启屏幕悬浮触控胶囊"
         }
 
-        // Primary Clay CTA (Fresh Mint 3D Button)
-        val priBg = Color.parseColor("#10B981")
-        val priFg = Color.WHITE
-        val priBorder = Color.parseColor(if (isDark) "#34D399" else "#6EE7B7")
+        // Primary CTA (.btn-primary: Obsidian Black #1C1917 + Champagne Gold border)
+        val priBg = Color.parseColor(if (isDark) "#D4AF37" else "#1C1917")
+        val priFg = Color.parseColor(if (isDark) "#1C1917" else "#FAF9F6")
+        val priBorder = Color.parseColor(if (isDark) "#E5C158" else "#C5A059")
 
         val priDrawable = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(12f).toFloat()
+            cornerRadius = dp(8f).toFloat()
             setColor(priBg)
-            setStroke(dp(1.8f), priBorder)
+            setStroke(dp(1.2f), priBorder)
         }
         btnToggleCapsule.background = priDrawable
         btnToggleCapsule.setTextColor(priFg)
 
-        // Outline Clay CTA
-        val outBg = Color.parseColor(if (isDark) "#184639" else "#F0FDF4")
-        val outFg = Color.parseColor(if (isDark) "#A7F3D0" else "#064E3B")
-        val outBorder = Color.parseColor(if (isDark) "#34D399" else "#A7F3D0")
+        // Outline Secondary CTA (.btn-outline)
+        val outBg = Color.parseColor(if (isDark) "#1F292524" else "#FFFFFF")
+        val outFg = Color.parseColor(if (isDark) "#FAF9F6" else "#1A1A1A")
+        val outBorder = Color.parseColor(if (isDark) "#66D4AF37" else "#C5A059")
 
         val outDrawable = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(12f).toFloat()
+            cornerRadius = dp(8f).toFloat()
             setColor(outBg)
-            setStroke(dp(1.8f), outBorder)
+            setStroke(dp(1.2f), outBorder)
         }
         btnOpenSettings.background = outDrawable
         btnOpenSettings.setTextColor(outFg)

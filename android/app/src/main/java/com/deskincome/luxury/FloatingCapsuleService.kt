@@ -46,11 +46,25 @@ class FloatingCapsuleService : Service() {
     private var rootContainer: FrameLayout? = null
     private var pillView: FloatingCapsulePillView? = null
     private var expandedCard: LiquidGlassCardContainer? = null
+
+    // Expanded Quick Panel UI References
+    private var tvExpTitle: TextView? = null
     private var tvExpStatus: TextView? = null
-    private var tvExpAmount: TextView? = null
-    private var expProgressBar: ChampagneProgressBarView? = null
+    private var expRoller: LuxuryRollerAmountView? = null
     private var tvExpTiming: TextView? = null
-    private var tvExpPayday: TextView? = null
+    private var tvExpPercent: TextView? = null
+    private var expProgressBar: ChampagneProgressBarView? = null
+    private var valHours: TextView? = null
+    private var valLunch: TextView? = null
+    private var lblMonthly: TextView? = null
+    private var valMonthly: TextView? = null
+    private var valDaily: TextView? = null
+    private var valHourly: TextView? = null
+    private var btnExpMillion: Button? = null
+    private var lblMillionCaption: TextView? = null
+    private var btnSettings: TextView? = null
+    private var btnCollapse: TextView? = null
+    private val detailPairs = mutableListOf<Pair<TextView, TextView>>()
 
     private var layoutParams: WindowManager.LayoutParams? = null
     private var isExpanded = false
@@ -67,7 +81,7 @@ class FloatingCapsuleService : Service() {
     private val tickerRunnable = object : Runnable {
         override fun run() {
             updateLiveState()
-            handler.postDelayed(this, 200L)
+            handler.postDelayed(this, 100L)
         }
     }
 
@@ -76,7 +90,7 @@ class FloatingCapsuleService : Service() {
         repo = ConfigRepository(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(null, repo.loadSettings()))
+        startForeground(NOTIFICATION_ID, buildNotification(null, repo.loadEffectiveSettings()))
         attachOverlayIfPermitted()
         handler.post(tickerRunnable)
     }
@@ -100,7 +114,7 @@ class FloatingCapsuleService : Service() {
 
     private fun getSafeBounds(): IntArray {
         val dm = resources.displayMetrics
-        val minTop = dp(48f) // Always stay well below the status bar so it is never blocked
+        val minTop = dp(48f) // Always stay well below status bar
         val maxBottom = dm.heightPixels - dp(64f)
         return intArrayOf(minTop, maxBottom)
     }
@@ -127,23 +141,22 @@ class FloatingCapsuleService : Service() {
             )
         )
 
-        // 2. Expanded AssistiveTouch Quick Panel (hidden initially)
+        // 2. Expanded AssistiveTouch Quick Panel (macOS Native Popover Style)
         val card = buildExpandedQuickPanel()
         card.visibility = View.GONE
         container.addView(
             card,
             FrameLayout.LayoutParams(
-                dp(256f),
+                dp(280f),
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
 
-        val defaultX = dm.widthPixels - dp(128f)
-        val defaultY = (dm.heightPixels * 0.34f).toInt().coerceIn(minY, maxY)
-        val startX = if (repo.capsuleX >= 0) repo.capsuleX.coerceIn(dp(6f), dm.widthPixels - dp(80f)) else defaultX
+        val defaultX = dm.widthPixels - dp(135f)
+        val defaultY = (dm.heightPixels * 0.35f).toInt().coerceIn(minY, maxY)
+        val startX = if (repo.capsuleX >= 0) repo.capsuleX.coerceIn(dp(6f), dm.widthPixels - dp(90f)) else defaultX
         val startY = if (repo.capsuleY >= minY) repo.capsuleY.coerceIn(minY, maxY) else defaultY
 
-        // Notice: No FLAG_LAYOUT_NO_LIMITS, so the system keeps the floating ball inside the touchable screen area!
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -171,86 +184,167 @@ class FloatingCapsuleService : Service() {
     }
 
     private fun buildExpandedQuickPanel(): LiquidGlassCardContainer {
-        val card = LiquidGlassCardContainer(this)
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16f), dp(14f), dp(16f), dp(14f))
+        val isDark = LuxuryTheme.isDark(this)
+        val card = LiquidGlassCardContainer(this).apply {
+            hasTopArrow = true
         }
 
-        val topRow = LinearLayout(this).apply {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            // Extra top padding for the top beak arrow
+            setPadding(dp(18f), dp(20f), dp(18f), dp(16f))
+        }
+
+        // 1. Header (Title + Status Pill)
+        val headerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val isDark = LuxuryTheme.isDark(this)
-        val title = TextView(this).apply {
-            text = "🌱 今日收入 · 悬浮胶囊"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(Color.parseColor(if (isDark) "#34D399" else "#10B981"))
+        val titleTv = TextView(this).apply {
+            text = if (repo.isMillionMode) "百万年薪体验" else "今日收入"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isDark) "#FAF9F6" else "#111827"))
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
+        tvExpTitle = titleTv
+
         val statusTv = TextView(this).apply {
             text = "正在赚钱"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B"))
+            setTextColor(Color.parseColor(if (isDark) "#10B981" else "#059669"))
         }
         tvExpStatus = statusTv
-        topRow.addView(title)
-        topRow.addView(statusTv)
-        col.addView(topRow)
+        headerRow.addView(titleTv)
+        headerRow.addView(statusTv)
+        col.addView(headerRow)
 
-        val amountTv = TextView(this).apply {
-            text = "¥0.00"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setTextColor(Color.parseColor(if (isDark) "#ECFDF5" else "#064E3B"))
-            setPadding(0, dp(6f), 0, dp(8f))
+        // 2. Big Money Amount Roller
+        val roller = LuxuryRollerAmountView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48f)
+            ).apply {
+                setMargins(0, dp(4f), 0, dp(4f))
+            }
         }
-        tvExpAmount = amountTv
-        col.addView(amountTv)
+        expRoller = roller
+        col.addView(roller)
 
+        // 3. Timing and Percent Sub-line
+        val progSubRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(6f))
+        }
+        val timingTv = TextView(this).apply {
+            text = "按工作时间自动计薪"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(Color.parseColor(if (isDark) "#9CA3AF" else "#6B7280"))
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        tvExpTiming = timingTv
+
+        val pctTv = TextView(this).apply {
+            text = "0%"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isDark) "#E5E7EB" else "#374151"))
+        }
+        tvExpPercent = pctTv
+        progSubRow.addView(timingTv)
+        progSubRow.addView(pctTv)
+        col.addView(progSubRow)
+
+        // 4. Slim Progress Bar (3.5dp high)
         val prog = ChampagneProgressBarView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(7f))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(4f))
         }
         expProgressBar = prog
         col.addView(prog)
 
-        val timingTv = TextView(this).apply {
-            text = "按工作时间自动计薪"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor(if (isDark) "#A7F3D0" else "#047857"))
-            setPadding(0, dp(6f), 0, dp(2f))
+        // 5. Divider
+        val divider1 = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(0.8f)).apply {
+                setMargins(0, dp(12f), 0, dp(10f))
+            }
+            setBackgroundColor(Color.parseColor(if (isDark) "#26FFFFFF" else "#14000000"))
         }
-        tvExpTiming = timingTv
-        col.addView(timingTv)
+        col.addView(divider1)
 
-        val paydayTv = TextView(this).apply {
-            text = "次月15日发薪"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            setTextColor(Color.parseColor(if (isDark) "#FBBF24" else "#F59E0B"))
-            setPadding(0, 0, 0, dp(10f))
-        }
-        tvExpPayday = paydayTv
-        col.addView(paydayTv)
+        // 6. Clean Details Rows
+        detailPairs.clear()
+        valHours = addDetailRow(col, "工作时间", "09:00–18:00")
+        valLunch = addDetailRow(col, "午休", "12:30–14:00 · 不计薪")
+        val (monthlyLbl, monthlyVal) = addDetailRowWithLabel(col, if (repo.isMillionMode) "体验月薪" else "月薪", "¥5,000.00")
+        lblMonthly = monthlyLbl
+        valMonthly = monthlyVal
+        valDaily = addDetailRow(col, "日薪估算", "¥192.31")
+        valHourly = addDetailRow(col, "每小时", "¥21.37")
 
-        val btnRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        // 7. Golden Gradient Pill Button 「百万年薪体验」
+        val millionBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(12f), 0, dp(4f))
         }
-        val btnMain = Button(this).apply {
-            text = "主面板"
+
+        val btnMillion = Button(this).apply {
+            text = if (repo.isMillionMode) "↶ 退出百万年薪体验" else "✨ 体验百万年薪"
             isAllCaps = false
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                cornerRadius = dp(10f).toFloat()
-                setColor(Color.parseColor("#10B981"))
-                setStroke(dp(1.2f), Color.parseColor("#6EE7B7"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(Color.parseColor("#1F2937"))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.parseColor("#F59E0B"), Color.parseColor("#FBBF24"))
+            ).apply {
+                cornerRadius = dp(19f).toFloat()
             }
-            layoutParams = LinearLayout.LayoutParams(0, dp(34f), 1f).apply {
-                rightMargin = dp(6f)
-            }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38f))
             setPadding(0, 0, 0, 0)
+            setOnClickListener {
+                repo.isMillionMode = !repo.isMillionMode
+                updateLiveState(forceNotification = true)
+            }
+        }
+        btnExpMillion = btnMillion
+        millionBox.addView(btnMillion)
+
+        val captionTv = TextView(this).apply {
+            text = "体验金额 · 年薪 100 万 ÷ 12，退出后恢复真实工资"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f)
+            setTextColor(Color.parseColor(if (isDark) "#9CA3AF" else "#6B7280"))
+            gravity = Gravity.CENTER
+            setPadding(0, dp(5f), 0, 0)
+        }
+        lblMillionCaption = captionTv
+        millionBox.addView(captionTv)
+        col.addView(millionBox)
+
+        // 8. Divider 2
+        val divider2 = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(0.8f)).apply {
+                setMargins(0, dp(10f), 0, dp(8f))
+            }
+            setBackgroundColor(Color.parseColor(if (isDark) "#26FFFFFF" else "#14000000"))
+        }
+        col.addView(divider2)
+
+        // 9. Footer: Settings & Collapse
+        val footerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(2f), 0, 0)
+        }
+
+        val settingsBtn = TextView(this).apply {
+            text = "修改设置"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(Color.parseColor(if (isDark) "#9CA3AF" else "#6B7280"))
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            setPadding(dp(2f), dp(4f), dp(8f), dp(4f))
             setOnClickListener {
                 toggleExpanded(false)
                 val openIntent = Intent(this@FloatingCapsuleService, MainActivity::class.java).apply {
@@ -259,28 +353,58 @@ class FloatingCapsuleService : Service() {
                 startActivity(openIntent)
             }
         }
-        val btnCollapse = Button(this).apply {
-            text = "收起"
-            isAllCaps = false
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            setTextColor(Color.parseColor(if (isDark) "#A7F3D0" else "#064E3B"))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(10f).toFloat()
-                setColor(Color.parseColor(if (isDark) "#184639" else "#F0FDF4"))
-                setStroke(dp(1.5f), Color.parseColor(if (isDark) "#34D399" else "#A7F3D0"))
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(34f), 1f)
-            setPadding(0, 0, 0, 0)
+        btnSettings = settingsBtn
+
+        val collapseBtn = TextView(this).apply {
+            text = "••• ⌵"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isDark) "#9CA3AF" else "#6B7280"))
+            setPadding(dp(8f), dp(4f), dp(2f), dp(4f))
             setOnClickListener {
                 toggleExpanded(false)
             }
         }
-        btnRow.addView(btnMain)
-        btnRow.addView(btnCollapse)
-        col.addView(btnRow)
+        btnCollapse = collapseBtn
+
+        footerRow.addView(settingsBtn)
+        footerRow.addView(collapseBtn)
+        col.addView(footerRow)
 
         card.addView(col)
         return card
+    }
+
+    private fun addDetailRow(container: LinearLayout, label: String, defaultVal: String): TextView {
+        val (_, valView) = addDetailRowWithLabel(container, label, defaultVal)
+        return valView
+    }
+
+    private fun addDetailRowWithLabel(container: LinearLayout, label: String, defaultVal: String): Pair<TextView, TextView> {
+        val isDark = LuxuryTheme.isDark(this)
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(3f), 0, dp(3f))
+        }
+        val lblView = TextView(this).apply {
+            text = label
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setTextColor(Color.parseColor(if (isDark) "#9CA3AF" else "#6B7280"))
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val valView = TextView(this).apply {
+            text = defaultVal
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isDark) "#FAF9F6" else "#111827"))
+        }
+        row.addView(lblView)
+        row.addView(valView)
+        container.addView(row)
+        detailPairs.add(lblView to valView)
+        return lblView to valView
     }
 
     private fun toggleExpanded(expand: Boolean) {
@@ -292,7 +416,7 @@ class FloatingCapsuleService : Service() {
             pillView?.visibility = View.GONE
             expandedCard?.visibility = View.VISIBLE
             val dm = resources.displayMetrics
-            val cardW = dp(256f)
+            val cardW = dp(280f)
             params.x = params.x.coerceIn(dp(8f), maxOf(dp(8f), dm.widthPixels - cardW - dp(8f)))
         } else {
             expandedCard?.visibility = View.GONE
@@ -364,7 +488,6 @@ class FloatingCapsuleService : Service() {
         }
 
         pill.setOnTouchListener(touchHandler)
-        expandedCard?.setOnTouchListener(touchHandler)
     }
 
     private fun snapToNearestEdgeIfClose(params: WindowManager.LayoutParams) {
@@ -425,25 +548,57 @@ class FloatingCapsuleService : Service() {
     }
 
     private fun updateLiveState(forceNotification: Boolean = false) {
-        val settings = repo.loadSettings()
+        val settings = repo.loadEffectiveSettings()
         val now = ZonedDateTime.now()
         val snap = IncomeMath.snapshot(settings, now)
         val isWorking = (snap.status == Status.WORKING)
+        val isMillion = repo.isMillionMode
         val formattedMoney = settings.money(snap.earned, digits = if (isWorking) 3 else 2)
 
         pillView?.let { view ->
             view.status = snap.status
             view.progress = snap.progress.toFloat()
+            view.isMillion = isMillion
             view.amountText = formattedMoney
         }
 
         if (isExpanded) {
-            val pct = (snap.progress * 100.0).roundToInt()
-            tvExpStatus?.text = "${snap.statusLabel} · $pct%"
-            tvExpAmount?.text = formattedMoney
-            expProgressBar?.progress = snap.progress.toFloat()
+            val isDark = LuxuryTheme.isDark(this)
+            tvExpTitle?.text = if (isMillion) "百万年薪体验" else "今日收入"
+            tvExpStatus?.text = snap.statusLabel
+
+            // Status color matching
+            val statusColor = when (snap.status) {
+                Status.WORKING -> if (isDark) Color.parseColor("#10B981") else Color.parseColor("#059669")
+                Status.LUNCH -> Color.parseColor("#F59E0B")
+                Status.BEFORE -> Color.parseColor("#D97706")
+                Status.FINISHED, Status.REST -> Color.parseColor("#9CA3AF")
+            }
+            tvExpStatus?.setTextColor(statusColor)
+
+            expRoller?.let { roller ->
+                roller.isWorking = isWorking
+                roller.isMillion = isMillion
+                roller.amountText = formattedMoney
+            }
+
             tvExpTiming?.text = snap.timingLabel(now)
-            tvExpPayday?.text = "午休 ${settings.lunchLabel} · ${settings.paydayLabel(now)}"
+            val pct = (snap.progress * 100.0).roundToInt()
+            tvExpPercent?.text = "$pct%"
+
+            expProgressBar?.let { bar ->
+                bar.isMillion = isMillion
+                bar.progress = snap.progress.toFloat()
+            }
+
+            valHours?.text = settings.hoursLabel
+            valLunch?.text = if (settings.hasLunchBreak) "${settings.lunchLabel} · 不计薪" else "无"
+            lblMonthly?.text = if (isMillion) "体验月薪" else "月薪"
+            valMonthly?.text = settings.money(settings.monthlySalary, 2)
+            valDaily?.text = settings.money(settings.dailySalary, 2)
+            valHourly?.text = settings.money(settings.hourlySalary, 2)
+
+            btnExpMillion?.text = if (isMillion) "↶ 退出百万年薪体验" else "✨ 体验百万年薪"
         }
 
         val nowSec = System.currentTimeMillis() / 1000L
@@ -475,7 +630,9 @@ class FloatingCapsuleService : Service() {
     ): Notification {
         val snap = snapshot ?: IncomeMath.snapshot(settings, now)
         val pct = (snap.progress * 100.0).roundToInt()
-        val title = "今日收入 ${settings.money(snap.earned, 2)} · ${snap.statusLabel} ($pct%)"
+        val isMillion = repo.isMillionMode
+        val prefix = if (isMillion) "【百万年薪体验】" else "今日收入"
+        val title = "$prefix ${settings.money(snap.earned, 2)} · ${snap.statusLabel} ($pct%)"
         val text = "${snap.timingLabel(now)} · ${settings.paydayLabel(now)}"
 
         val openPending = PendingIntent.getActivity(

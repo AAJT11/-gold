@@ -70,4 +70,17 @@ class ConfigRepository(context: Context) {
     var capsuleY: Int
         get() = prefs.getInt("assistive_y", -1)
         set(value) = prefs.edit().putInt("assistive_y", value).apply()
+
+    var isMillionMode: Boolean
+        get() = prefs.getBoolean("million_mode", false)
+        set(value) = prefs.edit().putBoolean("million_mode", value).apply()
+
+    fun loadEffectiveSettings(): IncomeSettings {
+        val s = loadSettings()
+        return if (isMillionMode) {
+            s.copy(monthlySalary = 1_000_000.0 / 12.0)
+        } else {
+            s
+        }
+    }
 }
